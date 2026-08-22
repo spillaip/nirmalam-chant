@@ -16,6 +16,7 @@ import org.nirmalam.chant.reminders.LocalReminderScheduler
 import java.time.ZonedDateTime
 import java.time.LocalDate
 import java.time.ZoneId
+import org.nirmalam.chant.data.PracticePlan
 
 data class DashboardState(
     val performed: List<org.nirmalam.chant.data.CompletedActivity> = emptyList(),
@@ -30,10 +31,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val count: StateFlow<Int> = _count
     private val _targetReached = MutableStateFlow(false)
     val targetReached: StateFlow<Boolean> = _targetReached
+    private val _currentTarget = MutableStateFlow(108)
+    val currentTarget: StateFlow<Int> = _currentTarget
     private val _dashboard = MutableStateFlow(DashboardState())
     val dashboard: StateFlow<DashboardState> = _dashboard
     private val _meditationToneEnabled = MutableStateFlow(FeedbackPreferences.isSoundEnabled(application))
     val meditationToneEnabled: StateFlow<Boolean> = _meditationToneEnabled
+    private val _hapticsEnabled = MutableStateFlow(FeedbackPreferences.isHapticsEnabled(application))
+    val hapticsEnabled: StateFlow<Boolean> = _hapticsEnabled
+    private val _voiceThreshold = MutableStateFlow(FeedbackPreferences.voiceThreshold(application))
+    val voiceThreshold: StateFlow<Float> = _voiceThreshold
+    private val _defaultTarget = MutableStateFlow(108)
+    val defaultTarget: StateFlow<Int> = _defaultTarget
     private var currentSession: org.nirmalam.chant.data.ChantSession? = null
     private var countJob: Job? = null
 
@@ -59,7 +68,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val now = ZonedDateTime.now()
         var scheduled = now.withHour(18).withMinute(0).withSecond(0).withNano(0)
         if (!scheduled.isAfter(now)) scheduled = scheduled.plusDays(1)
-        val plan = repository.plan("Evening practice", scheduled.toInstant())
+        val plan = repository.plan("Evening practice", scheduled.toInstant(), _defaultTarget.value)
         LocalReminderScheduler.schedule(getApplication(), plan.id, plan.title, plan.scheduledFor.toEpochMilli())
     }
 
@@ -71,13 +80,40 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         FeedbackPreferences.setSoundEnabled(getApplication(), enabled)
         _meditationToneEnabled.value = enabled
     }
+    fun setHapticsEnabled(enabled: Boolean) {
+        FeedbackPreferences.setHapticsEnabled(getApplication(), enabled)
+        _hapticsEnabled.value = enabled
+    }
+    fun setVoiceThreshold(value: Float) {
+        FeedbackPreferences.setVoiceThreshold(getApplication(), value)
+        _voiceThreshold.value = value
+    }
+    fun setDefaultTarget(value: Int) { _defaultTarget.value = value.coerceIn(1, 10_000) }
+    fun startPlannedPractice(plan: PracticePlan) = viewModelScope.launch { activateSession(repository.beginSessionFromPlan(plan)) }
+    fun skipPlan(plan: PracticePlan) = viewModelScope.launch {
+        LocalReminderScheduler.cancel(getApplication(), plan.id)
+        repository.skipPlan(plan)
+    }
+    fun deletePlan(plan: PracticePlan) = viewModelScope.launch {
+        LocalReminderScheduler.cancel(getApplication(), plan.id)
+        repository.deletePlan(plan)
+    }
+    fun postponePlan(plan: PracticePlan) = viewModelScope.launch {
+        val scheduledFor = plan.scheduledFor.plusSeconds(86_400)
+        repository.updatePlan(plan, plan.title, scheduledFor, plan.targetCount, plan.reminderEnabled)
+        if (plan.reminderEnabled) {
+            LocalReminderScheduler.schedule(getApplication(), plan.id, plan.title, scheduledFor.toEpochMilli())
+        }
+    }
 
     fun beginNextPractice() = viewModelScope.launch {
-        activateSession(repository.beginNextSession())
+        val session = repository.beginNextSession()
+        activateSession(repository.updateActiveTarget(session, _defaultTarget.value))
     }
 
     private fun activateSession(session: org.nirmalam.chant.data.ChantSession) {
         currentSession = session
+        _currentTarget.value = session.targetCount
         _targetReached.value = false
         countJob?.cancel()
         countJob = viewModelScope.launch {

@@ -6,12 +6,13 @@ import android.media.MediaRecorder
 import kotlin.math.sqrt
 
 /**
- * Privacy-preserving baseline VAD. Audio buffers never leave the device and are never persisted.
- * Replace [isChantCandidate] with a bundled TFLite classifier when a trained mantra model is ready.
+ * Audio buffers never leave the device and are never persisted. A bundled TFLite model is used
+ * when available; the locally configured energy gate remains the intentional offline fallback.
  */
-class VoiceChantDetector(private val onChant: () -> Unit) {
+class VoiceChantDetector(context: android.content.Context, private val onChant: () -> Unit) {
     @Volatile private var running = false
     private var lastDetectionMs = 0L
+    private val classifier = LocalChantClassifier(context.applicationContext)
 
     fun start() {
         if (running) return
@@ -44,11 +45,12 @@ class VoiceChantDetector(private val onChant: () -> Unit) {
         } finally {
             recorder.stop()
             recorder.release()
+            classifier.close()
         }
     }
 
     private fun isChantCandidate(buffer: ShortArray, size: Int): Boolean {
         val rms = sqrt((0 until size).sumOf { buffer[it].toDouble() * buffer[it] } / size)
-        return rms > 450.0 // calibrated in Settings in a production classifier pipeline
+        return classifier.isChantCandidate(buffer, size, rms)
     }
 }

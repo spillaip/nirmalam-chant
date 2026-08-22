@@ -19,6 +19,17 @@ class ChantRepository(private val dao: ChantDao) {
         dao.insertSession(session)
         return session
     }
+    suspend fun beginSessionFromPlan(plan: PracticePlan): ChantSession {
+        dao.activeSession()?.let { dao.endSession(it.id, Instant.now()) }
+        val session = ChantSession(title = plan.title, targetCount = plan.targetCount, practicePlanId = plan.id)
+        dao.insertSession(session)
+        return session
+    }
+    suspend fun updateActiveTarget(session: ChantSession, targetCount: Int): ChantSession {
+        val safeTarget = targetCount.coerceIn(1, 10_000)
+        dao.updateSessionTarget(session.id, safeTarget)
+        return session.copy(targetCount = safeTarget)
+    }
     suspend fun record(session: ChantSession, source: TallySource): TallyResult = tallyMutex.withLock {
         val before = dao.count(session.id)
         if (before >= session.targetCount) {
@@ -28,7 +39,10 @@ class ChantRepository(private val dao: ChantDao) {
         dao.insertTally(ChantTally(sessionId = session.id, source = source))
         val updated = before + 1
         val reached = updated >= session.targetCount
-        if (reached) dao.endSession(session.id, Instant.now())
+        if (reached) {
+            dao.endSession(session.id, Instant.now())
+            session.practicePlanId?.let { dao.updatePlanStatus(it, PlanStatus.COMPLETED) }
+        }
         TallyResult(updated, reachedTarget = reached, recorded = true)
     }
     suspend fun count(sessionId: String): Int = dao.count(sessionId)
@@ -41,6 +55,10 @@ class ChantRepository(private val dao: ChantDao) {
         dao.insertPlan(plan)
         return plan
     }
+    suspend fun updatePlan(plan: PracticePlan, title: String, scheduledFor: Instant, targetCount: Int, reminderEnabled: Boolean): Int =
+        dao.updatePlan(plan.id, title.trim().ifBlank { plan.title }, scheduledFor, targetCount.coerceIn(1, 10_000), reminderEnabled)
+    suspend fun skipPlan(plan: PracticePlan): Int = dao.updatePlanStatus(plan.id, PlanStatus.SKIPPED)
+    suspend fun deletePlan(plan: PracticePlan): Int = dao.deletePlan(plan.id)
     suspend fun setIntention(sessionId: String, intention: String?): Int =
         dao.updateIntention(sessionId, intention?.trim()?.ifBlank { null })
 }

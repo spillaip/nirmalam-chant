@@ -15,7 +15,8 @@ data class ChantSession(
     val endedAt: Instant? = null,
     val title: String = "Daily practice",
     val targetCount: Int = 108,
-    val intention: String? = null
+    val intention: String? = null,
+    val practicePlanId: String? = null
 )
 
 @Entity(
@@ -46,7 +47,8 @@ data class PracticePlan(
     val title: String,
     val scheduledFor: Instant,
     val targetCount: Int = 108,
-    val status: PlanStatus = PlanStatus.PLANNED
+    val status: PlanStatus = PlanStatus.PLANNED,
+    val reminderEnabled: Boolean = true
 )
 
 enum class PlanStatus { PLANNED, COMPLETED, SKIPPED }

@@ -32,6 +32,7 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
+import androidx.compose.material3.Slider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -77,8 +78,12 @@ class MainActivity : ComponentActivity() {
             val dashboard by viewModel.dashboard.collectAsStateWithLifecycle()
             val meditationToneEnabled by viewModel.meditationToneEnabled.collectAsStateWithLifecycle()
             val targetReached by viewModel.targetReached.collectAsStateWithLifecycle()
+            val currentTarget by viewModel.currentTarget.collectAsStateWithLifecycle()
+            val hapticsEnabled by viewModel.hapticsEnabled.collectAsStateWithLifecycle()
+            val voiceThreshold by viewModel.voiceThreshold.collectAsStateWithLifecycle()
+            val defaultTarget by viewModel.defaultTarget.collectAsStateWithLifecycle()
             NirmalamTheme {
-                ChantHome(count, targetReached, dashboard, meditationToneEnabled, viewModel::addManualTally, viewModel::beginNextPractice, viewModel::saveIntention, viewModel::setMeditationToneEnabled, ::planPractice, ::requestTracking, ::stopTracking)
+                ChantHome(count, currentTarget, targetReached, dashboard, meditationToneEnabled, hapticsEnabled, voiceThreshold, defaultTarget, viewModel::addManualTally, viewModel::beginNextPractice, viewModel::saveIntention, viewModel::setMeditationToneEnabled, viewModel::setHapticsEnabled, viewModel::setVoiceThreshold, viewModel::setDefaultTarget, ::planPractice, ::requestTracking, ::stopTracking, viewModel::startPlannedPractice, viewModel::postponePlan, viewModel::skipPlan, viewModel::deletePlan)
             }
         }
     }
@@ -108,8 +113,13 @@ class MainActivity : ComponentActivity() {
 }
 
 @androidx.compose.runtime.Composable
-private fun ChantHome(count: Int, targetReached: Boolean, dashboard: DashboardState, meditationToneEnabled: Boolean, onAdd: () -> Unit, onBeginNext: () -> Unit, onSaveIntention: (String) -> Unit, onToneChange: (Boolean) -> Unit, onPlan: () -> Unit, onStart: () -> Unit, onStop: () -> Unit) {
+private fun ChantHome(count: Int, currentTarget: Int, targetReached: Boolean, dashboard: DashboardState, meditationToneEnabled: Boolean, hapticsEnabled: Boolean, voiceThreshold: Float, defaultTarget: Int, onAdd: () -> Unit, onBeginNext: () -> Unit, onSaveIntention: (String) -> Unit, onToneChange: (Boolean) -> Unit, onHapticsChange: (Boolean) -> Unit, onThresholdChange: (Float) -> Unit, onTargetChange: (Int) -> Unit, onPlan: () -> Unit, onStart: () -> Unit, onStop: () -> Unit, onStartPlan: (org.nirmalam.chant.data.PracticePlan) -> Unit, onPostponePlan: (org.nirmalam.chant.data.PracticePlan) -> Unit, onSkipPlan: (org.nirmalam.chant.data.PracticePlan) -> Unit, onDeletePlan: (org.nirmalam.chant.data.PracticePlan) -> Unit) {
     var intention by remember { mutableStateOf("") }
+    var practiceMode by remember { mutableStateOf(false) }
+    if (practiceMode) {
+        PracticeFocus(count, currentTarget, targetReached, onAdd, onBeginNext, onStart, onStop) { practiceMode = false }
+        return
+    }
     Box(Modifier.fillMaxSize()) {
         MysticBackground()
         LazyColumn(
@@ -125,8 +135,8 @@ private fun ChantHome(count: Int, targetReached: Boolean, dashboard: DashboardSt
                 Column(Modifier.fillMaxWidth().padding(vertical = 26.dp, horizontal = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("TODAY'S CHANTS", style = MaterialTheme.typography.labelLarge)
                     Text(count.toString(), fontSize = 112.sp, lineHeight = 118.sp, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.primary)
-                    Text(if (targetReached) "108 complete" else "of 108", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.secondary)
-                    MalaProgress(count, targetReached)
+                    Text(if (targetReached) "$currentTarget complete" else "of $currentTarget", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.secondary)
+                    MalaProgress(count, currentTarget, targetReached)
                 }
             }
             Spacer(Modifier.height(8.dp))
@@ -141,16 +151,26 @@ private fun ChantHome(count: Int, targetReached: Boolean, dashboard: DashboardSt
                     onClick = onAdd, modifier = Modifier.fillMaxWidth().height(52.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
                 ) { Text("Add one manually") }
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(onClick = { practiceMode = true }, modifier = Modifier.fillMaxWidth().height(48.dp)) { Text("Enter focus practice") }
             }
             Spacer(Modifier.height(12.dp))
             OutlinedTextField(
                 value = intention, onValueChange = { intention = it }, modifier = Modifier.fillMaxWidth(),
                 label = { Text("Today's intention") }, singleLine = true
             )
+            Spacer(Modifier.height(6.dp))
+            androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                OutlinedButton(onClick = { intention = "Peace" }) { Text("Peace") }
+                OutlinedButton(onClick = { intention = "Gratitude" }) { Text("Gratitude") }
+                OutlinedButton(onClick = { intention = "Focus" }) { Text("Focus") }
+            }
             Spacer(Modifier.height(8.dp))
             Button(onClick = { onSaveIntention(intention) }, modifier = Modifier.fillMaxWidth()) { Text("Save intention") }
             Spacer(Modifier.height(12.dp))
             MeditationToneCard(meditationToneEnabled, onToneChange)
+            Spacer(Modifier.height(12.dp))
+            SettingsCard(defaultTarget, hapticsEnabled, voiceThreshold, onTargetChange, onHapticsChange, onThresholdChange)
             Spacer(Modifier.height(12.dp))
             Text("No ads. No analytics. Audio never leaves this device.", textAlign = TextAlign.Center, style = MaterialTheme.typography.bodySmall)
             }
@@ -163,7 +183,7 @@ private fun ChantHome(count: Int, targetReached: Boolean, dashboard: DashboardSt
             }
         } else {
             items(dashboard.planned, key = { it.id }) { plan ->
-                ActivityCard(plan.title, "Scheduled ${formatActivityTime(plan.scheduledFor)} · ${plan.targetCount} chants")
+                PlanCard(plan, onStartPlan, onPostponePlan, onSkipPlan, onDeletePlan)
             }
             item {
                 Button(onClick = onPlan, modifier = Modifier.fillMaxWidth()) { Text("Plan another evening practice") }
@@ -228,12 +248,84 @@ private fun MeditationToneCard(enabled: Boolean, onChange: (Boolean) -> Unit) = 
 }
 
 @androidx.compose.runtime.Composable
-private fun MalaProgress(count: Int, complete: Boolean) = Canvas(Modifier.fillMaxWidth().height(42.dp).padding(top = 12.dp)) {
+private fun SettingsCard(target: Int, hapticsEnabled: Boolean, threshold: Float, onTargetChange: (Int) -> Unit, onHapticsChange: (Boolean) -> Unit, onThresholdChange: (Float) -> Unit) = Card(Modifier.fillMaxWidth()) {
+    var targetText by remember(target) { mutableStateOf(target.toString()) }
+    Column(Modifier.padding(16.dp)) {
+        Text("Practice settings", style = MaterialTheme.typography.titleMedium)
+        Spacer(Modifier.height(8.dp))
+        OutlinedTextField(
+            value = targetText, onValueChange = { value ->
+                targetText = value.filter(Char::isDigit).take(5)
+                targetText.toIntOrNull()?.let(onTargetChange)
+            }, modifier = Modifier.fillMaxWidth(), singleLine = true,
+            label = { Text("Chants in next practice") }
+        )
+        Spacer(Modifier.height(8.dp))
+        androidx.compose.foundation.layout.Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Column { Text("Haptic feedback"); Text("Pulse after each count", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary) }
+            Switch(checked = hapticsEnabled, onCheckedChange = onHapticsChange)
+        }
+        Spacer(Modifier.height(8.dp))
+        Text("Whisper / noise sensitivity", style = MaterialTheme.typography.bodyMedium)
+        Slider(value = threshold, onValueChange = onThresholdChange, valueRange = 100f..2000f)
+        Text("Lower values hear softer whispers; raise it in a noisy room.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
+    }
+}
+
+@androidx.compose.runtime.Composable
+private fun PlanCard(plan: org.nirmalam.chant.data.PracticePlan, onStart: (org.nirmalam.chant.data.PracticePlan) -> Unit, onPostpone: (org.nirmalam.chant.data.PracticePlan) -> Unit, onSkip: (org.nirmalam.chant.data.PracticePlan) -> Unit, onDelete: (org.nirmalam.chant.data.PracticePlan) -> Unit) = Card(Modifier.fillMaxWidth()) {
+    Column(Modifier.padding(16.dp)) {
+        Text(plan.title, style = MaterialTheme.typography.titleMedium)
+        Text("${formatActivityTime(plan.scheduledFor)} · ${plan.targetCount} chants", color = MaterialTheme.colorScheme.secondary)
+        androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = { onStart(plan) }) { Text("Start") }
+            OutlinedButton(onClick = { onPostpone(plan) }) { Text("Tomorrow") }
+        }
+        androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = { onSkip(plan) }) { Text("Skip") }
+            OutlinedButton(onClick = { onDelete(plan) }) { Text("Delete") }
+        }
+    }
+}
+
+@androidx.compose.runtime.Composable
+private fun PracticeFocus(count: Int, target: Int, targetReached: Boolean, onAdd: () -> Unit, onBeginNext: () -> Unit, onStart: () -> Unit, onStop: () -> Unit, onExit: () -> Unit) {
+    Box(Modifier.fillMaxSize()) {
+        MysticBackground()
+        Column(
+            modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(28.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            OmMark()
+            Spacer(Modifier.height(20.dp))
+            Text(if (targetReached) "Practice complete" else "Focus practice", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.secondary)
+            Text(count.toString(), fontSize = 128.sp, lineHeight = 132.sp, color = MaterialTheme.colorScheme.primary)
+            Text(if (targetReached) "$target of $target" else "of $target", style = MaterialTheme.typography.titleMedium)
+            MalaProgress(count, target, targetReached)
+            Spacer(Modifier.height(30.dp))
+            if (targetReached) {
+                Button(onClick = onBeginNext, modifier = Modifier.fillMaxWidth().height(60.dp)) { Text("Begin next practice") }
+            } else {
+                Button(onClick = onStart, modifier = Modifier.fillMaxWidth().height(60.dp)) { Text("Start listening") }
+                Spacer(Modifier.height(10.dp))
+                Button(onClick = onAdd, modifier = Modifier.fillMaxWidth().height(56.dp), colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurfaceVariant)) { Text("Add one") }
+                Spacer(Modifier.height(10.dp))
+                OutlinedButton(onClick = onStop, modifier = Modifier.fillMaxWidth()) { Text("Pause listening") }
+            }
+            Spacer(Modifier.height(18.dp))
+            OutlinedButton(onClick = onExit) { Text("Return to dashboard") }
+        }
+    }
+}
+
+@androidx.compose.runtime.Composable
+private fun MalaProgress(count: Int, target: Int, complete: Boolean) = Canvas(Modifier.fillMaxWidth().height(42.dp).padding(top = 12.dp)) {
     val beadCount = 27
     val spacing = size.width / beadCount
     val radius = (spacing * 0.25f).coerceAtMost(size.height / 3)
     repeat(beadCount) { index ->
-        val progressAtBead = (index + 1) * 4
+        val progressAtBead = ((index + 1) * target + beadCount - 1) / beadCount
         drawCircle(
             color = if (count >= progressAtBead || complete) Color(0xFFF0BE71) else Color(0xFF4B625D),
             radius = radius,

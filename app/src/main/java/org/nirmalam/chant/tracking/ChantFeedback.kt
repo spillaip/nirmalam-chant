@@ -7,7 +7,7 @@ import android.os.VibratorManager
 
 object ChantFeedback {
     fun give(context: Context, count: Int) {
-        pulse(context, count)
+        if (FeedbackPreferences.isHapticsEnabled(context)) pulse(context, count)
         if (FeedbackPreferences.isSoundEnabled(context)) MeditationTone.play()
     }
 

@@ -11,11 +11,23 @@ interface ChantDao {
     @Insert suspend fun insertTally(tally: ChantTally)
     @Insert suspend fun insertPlan(plan: PracticePlan)
 
+    @Query("UPDATE chant_sessions SET targetCount = :targetCount WHERE id = :sessionId AND endedAt IS NULL")
+    suspend fun updateSessionTarget(sessionId: String, targetCount: Int): Int
+
     @Query("UPDATE chant_sessions SET intention = :intention WHERE id = :sessionId")
     suspend fun updateIntention(sessionId: String, intention: String?): Int
 
     @Query("UPDATE chant_sessions SET endedAt = :endedAt WHERE id = :sessionId AND endedAt IS NULL")
     suspend fun endSession(sessionId: String, endedAt: java.time.Instant): Int
+
+    @Query("UPDATE practice_plans SET status = :status WHERE id = :planId")
+    suspend fun updatePlanStatus(planId: String, status: PlanStatus): Int
+
+    @Query("UPDATE practice_plans SET title = :title, scheduledFor = :scheduledFor, targetCount = :targetCount, reminderEnabled = :reminderEnabled WHERE id = :planId")
+    suspend fun updatePlan(planId: String, title: String, scheduledFor: java.time.Instant, targetCount: Int, reminderEnabled: Boolean): Int
+
+    @Query("DELETE FROM practice_plans WHERE id = :planId")
+    suspend fun deletePlan(planId: String): Int
 
     @Query("SELECT * FROM chant_sessions WHERE endedAt IS NULL ORDER BY startedAt DESC LIMIT 1")
     suspend fun activeSession(): ChantSession?

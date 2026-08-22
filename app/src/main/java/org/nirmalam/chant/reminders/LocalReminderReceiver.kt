@@ -48,4 +48,15 @@ object LocalReminderScheduler {
         // Inexact delivery protects battery life and avoids exact-alarm privileges.
         alarm.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, atMillis, pending)
     }
+
+    fun cancel(context: Context, planId: String) {
+        val pendingIntent = PendingIntent.getBroadcast(
+            context,
+            planId.hashCode(),
+            Intent(context, LocalReminderReceiver::class.java).putExtra("plan_id", planId),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        (context.getSystemService(Context.ALARM_SERVICE) as AlarmManager).cancel(pendingIntent)
+        pendingIntent.cancel()
+    }
 }

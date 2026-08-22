@@ -27,7 +27,7 @@ class ChantTrackingService : Service() {
         scope.launch {
             val repository = (application as NirmalamApplication).repository
             val session = repository.getOrCreateActiveSession()
-            detector = VoiceChantDetector {
+            detector = VoiceChantDetector(this@ChantTrackingService) {
                 scope.launch {
                     val result = repository.record(session, TallySource.VOICE)
                     if (result.recorded) ChantFeedback.give(this@ChantTrackingService, result.count)
