@@ -1,8 +1,8 @@
-package org.nirmalam.chant
+package com.nirmalamgroup.nirmalamchant
 
 import android.app.Application
-import org.nirmalam.chant.data.AppDatabase
-import org.nirmalam.chant.data.ChantRepository
+import com.nirmalamgroup.nirmalamchant.data.AppDatabase
+import com.nirmalamgroup.nirmalamchant.data.ChantRepository
 
 class NirmalamApplication : Application() {
     val repository: ChantRepository by lazy {

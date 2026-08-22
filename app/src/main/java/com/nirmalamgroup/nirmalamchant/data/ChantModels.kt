@@ -1,4 +1,4 @@
-package org.nirmalam.chant.data
+package com.nirmalamgroup.nirmalamchant.data
 
 import androidx.room.Entity
 import androidx.room.ForeignKey

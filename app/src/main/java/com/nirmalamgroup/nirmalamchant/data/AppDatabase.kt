@@ -1,4 +1,4 @@
-package org.nirmalam.chant.data
+package com.nirmalamgroup.nirmalamchant.data
 
 import android.content.Context
 import androidx.room.Database

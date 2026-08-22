@@ -1,4 +1,4 @@
-package org.nirmalam.chant.tracking
+package com.nirmalamgroup.nirmalamchant.tracking
 
 import android.content.Context
 import android.media.AudioAttributes

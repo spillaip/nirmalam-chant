@@ -1,4 +1,4 @@
-package org.nirmalam.chant
+package com.nirmalamgroup.nirmalamchant
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
@@ -8,19 +8,19 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import org.nirmalam.chant.data.ChantRepository
-import org.nirmalam.chant.data.TallySource
-import org.nirmalam.chant.tracking.ChantFeedback
-import org.nirmalam.chant.tracking.FeedbackPreferences
-import org.nirmalam.chant.reminders.LocalReminderScheduler
+import com.nirmalamgroup.nirmalamchant.data.ChantRepository
+import com.nirmalamgroup.nirmalamchant.data.TallySource
+import com.nirmalamgroup.nirmalamchant.tracking.ChantFeedback
+import com.nirmalamgroup.nirmalamchant.tracking.FeedbackPreferences
+import com.nirmalamgroup.nirmalamchant.reminders.LocalReminderScheduler
 import java.time.ZonedDateTime
 import java.time.LocalDate
 import java.time.ZoneId
-import org.nirmalam.chant.data.PracticePlan
+import com.nirmalamgroup.nirmalamchant.data.PracticePlan
 
 data class DashboardState(
-    val performed: List<org.nirmalam.chant.data.CompletedActivity> = emptyList(),
-    val planned: List<org.nirmalam.chant.data.PracticePlan> = emptyList(),
+    val performed: List<com.nirmalamgroup.nirmalamchant.data.CompletedActivity> = emptyList(),
+    val planned: List<com.nirmalamgroup.nirmalamchant.data.PracticePlan> = emptyList(),
     val streakDays: Int = 0,
     val sessionsThisWeek: Int = 0
 )
@@ -43,7 +43,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val voiceThreshold: StateFlow<Float> = _voiceThreshold
     private val _defaultTarget = MutableStateFlow(FeedbackPreferences.defaultTarget(application))
     val defaultTarget: StateFlow<Int> = _defaultTarget
-    private var currentSession: org.nirmalam.chant.data.ChantSession? = null
+    private var currentSession: com.nirmalamgroup.nirmalamchant.data.ChantSession? = null
     private var countJob: Job? = null
     private val _canUndoManualTally = MutableStateFlow(false)
     val canUndoManualTally: StateFlow<Boolean> = _canUndoManualTally
@@ -136,7 +136,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         activateSession(repository.updateActiveTarget(session, _defaultTarget.value))
     }
 
-    private fun activateSession(session: org.nirmalam.chant.data.ChantSession) {
+    private fun activateSession(session: com.nirmalamgroup.nirmalamchant.data.ChantSession) {
         currentSession = session
         _currentTarget.value = session.targetCount
         _targetReached.value = false
@@ -150,7 +150,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun calculateStreak(activities: List<org.nirmalam.chant.data.CompletedActivity>): Int {
+    private fun calculateStreak(activities: List<com.nirmalamgroup.nirmalamchant.data.CompletedActivity>): Int {
         val activeDays = activities.filter { it.tallyCount > 0 }
             .map { it.startedAt.atZone(ZoneId.systemDefault()).toLocalDate() }.toSet()
         var day = LocalDate.now()
@@ -159,7 +159,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         return streak
     }
 
-    private fun sessionsThisWeek(activities: List<org.nirmalam.chant.data.CompletedActivity>): Int {
+    private fun sessionsThisWeek(activities: List<com.nirmalamgroup.nirmalamchant.data.CompletedActivity>): Int {
         val start = LocalDate.now().minusDays(6)
         return activities.count { it.tallyCount > 0 && !it.startedAt.atZone(ZoneId.systemDefault()).toLocalDate().isBefore(start) }
     }

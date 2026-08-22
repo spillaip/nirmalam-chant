@@ -1,4 +1,4 @@
-package org.nirmalam.chant.data
+package com.nirmalamgroup.nirmalamchant.data
 
 import androidx.room.Dao
 import androidx.room.Insert

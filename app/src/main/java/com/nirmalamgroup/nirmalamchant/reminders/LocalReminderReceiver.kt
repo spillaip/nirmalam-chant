@@ -1,4 +1,4 @@
-package org.nirmalam.chant.reminders
+package com.nirmalamgroup.nirmalamchant.reminders
 
 import android.app.AlarmManager
 import android.app.NotificationChannel
@@ -8,7 +8,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import androidx.core.app.NotificationCompat
-import org.nirmalam.chant.MainActivity
+import com.nirmalamgroup.nirmalamchant.MainActivity
 
 /** Local-only, user-created reminder. It never contacts a server or account. */
 class LocalReminderReceiver : BroadcastReceiver() {

@@ -1,4 +1,4 @@
-package org.nirmalam.chant.tracking
+package com.nirmalamgroup.nirmalamchant.tracking
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -13,9 +13,9 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import org.nirmalam.chant.MainActivity
-import org.nirmalam.chant.NirmalamApplication
-import org.nirmalam.chant.data.TallySource
+import com.nirmalamgroup.nirmalamchant.MainActivity
+import com.nirmalamgroup.nirmalamchant.NirmalamApplication
+import com.nirmalamgroup.nirmalamchant.data.TallySource
 import java.util.concurrent.atomic.AtomicBoolean
 
 class ChantTrackingService : Service() {

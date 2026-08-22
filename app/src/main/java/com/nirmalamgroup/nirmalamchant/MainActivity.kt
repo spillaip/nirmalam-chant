@@ -1,4 +1,4 @@
-package org.nirmalam.chant
+package com.nirmalamgroup.nirmalamchant
 
 import android.Manifest
 import android.content.Intent
@@ -58,8 +58,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import org.nirmalam.chant.tracking.ChantTrackingService
-import org.nirmalam.chant.ui.NirmalamTheme
+import com.nirmalamgroup.nirmalamchant.tracking.ChantTrackingService
+import com.nirmalamgroup.nirmalamchant.ui.NirmalamTheme
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
@@ -121,7 +121,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @androidx.compose.runtime.Composable
-private fun ChantHome(count: Int, currentTarget: Int, targetReached: Boolean, dashboard: DashboardState, meditationToneEnabled: Boolean, hapticsEnabled: Boolean, voiceThreshold: Float, defaultTarget: Int, canUndoManualTally: Boolean, voiceTracking: Boolean, onAdd: () -> Unit, onUndo: () -> Unit, onBeginNext: () -> Unit, onSaveIntention: (String) -> Unit, onToneChange: (Boolean) -> Unit, onHapticsChange: (Boolean) -> Unit, onThresholdChange: (Float) -> Unit, onTargetChange: (Int) -> Unit, onPlan: () -> Unit, onStart: () -> Unit, onStop: () -> Unit, onStartPlan: (org.nirmalam.chant.data.PracticePlan) -> Unit, onEditPlan: (org.nirmalam.chant.data.PracticePlan, String, Int, Boolean) -> Unit, onPostponePlan: (org.nirmalam.chant.data.PracticePlan) -> Unit, onSkipPlan: (org.nirmalam.chant.data.PracticePlan) -> Unit, onDeletePlan: (org.nirmalam.chant.data.PracticePlan) -> Unit) {
+private fun ChantHome(count: Int, currentTarget: Int, targetReached: Boolean, dashboard: DashboardState, meditationToneEnabled: Boolean, hapticsEnabled: Boolean, voiceThreshold: Float, defaultTarget: Int, canUndoManualTally: Boolean, voiceTracking: Boolean, onAdd: () -> Unit, onUndo: () -> Unit, onBeginNext: () -> Unit, onSaveIntention: (String) -> Unit, onToneChange: (Boolean) -> Unit, onHapticsChange: (Boolean) -> Unit, onThresholdChange: (Float) -> Unit, onTargetChange: (Int) -> Unit, onPlan: () -> Unit, onStart: () -> Unit, onStop: () -> Unit, onStartPlan: (com.nirmalamgroup.nirmalamchant.data.PracticePlan) -> Unit, onEditPlan: (com.nirmalamgroup.nirmalamchant.data.PracticePlan, String, Int, Boolean) -> Unit, onPostponePlan: (com.nirmalamgroup.nirmalamchant.data.PracticePlan) -> Unit, onSkipPlan: (com.nirmalamgroup.nirmalamchant.data.PracticePlan) -> Unit, onDeletePlan: (com.nirmalamgroup.nirmalamchant.data.PracticePlan) -> Unit) {
     var intention by remember { mutableStateOf("") }
     var practiceMode by remember { mutableStateOf(false) }
     var section by remember { mutableStateOf(HomeSection.PRACTICE) }
@@ -346,7 +346,7 @@ private fun SettingsCard(target: Int, hapticsEnabled: Boolean, threshold: Float,
 }
 
 @androidx.compose.runtime.Composable
-private fun PlanCard(plan: org.nirmalam.chant.data.PracticePlan, onStart: (org.nirmalam.chant.data.PracticePlan) -> Unit, onEdit: (org.nirmalam.chant.data.PracticePlan, String, Int, Boolean) -> Unit, onPostpone: (org.nirmalam.chant.data.PracticePlan) -> Unit, onSkip: (org.nirmalam.chant.data.PracticePlan) -> Unit, onDelete: (org.nirmalam.chant.data.PracticePlan) -> Unit) {
+private fun PlanCard(plan: com.nirmalamgroup.nirmalamchant.data.PracticePlan, onStart: (com.nirmalamgroup.nirmalamchant.data.PracticePlan) -> Unit, onEdit: (com.nirmalamgroup.nirmalamchant.data.PracticePlan, String, Int, Boolean) -> Unit, onPostpone: (com.nirmalamgroup.nirmalamchant.data.PracticePlan) -> Unit, onSkip: (com.nirmalamgroup.nirmalamchant.data.PracticePlan) -> Unit, onDelete: (com.nirmalamgroup.nirmalamchant.data.PracticePlan) -> Unit) {
     var editing by remember { mutableStateOf(false) }
     var title by remember(plan.id) { mutableStateOf(plan.title) }
     var target by remember(plan.id) { mutableStateOf(plan.targetCount.toString()) }

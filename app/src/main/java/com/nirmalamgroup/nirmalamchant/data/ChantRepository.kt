@@ -1,4 +1,4 @@
-package org.nirmalam.chant.data
+package com.nirmalamgroup.nirmalamchant.data
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.sync.Mutex

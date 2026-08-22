@@ -13,11 +13,11 @@ val keystoreProperties = Properties().apply {
 }
 
 android {
-    namespace = "org.nirmalam.chant"
+    namespace = "com.nirmalamgroup.nirmalamchant"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "org.nirmalam.chant"
+        applicationId = "com.nirmalamgroup.nirmalamchant"
         minSdk = 26
         targetSdk = 35
         versionCode = 1
