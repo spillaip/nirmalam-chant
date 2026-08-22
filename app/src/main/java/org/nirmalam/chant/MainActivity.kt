@@ -35,6 +35,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Slider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -117,6 +118,10 @@ class MainActivity : ComponentActivity() {
 private fun ChantHome(count: Int, currentTarget: Int, targetReached: Boolean, dashboard: DashboardState, meditationToneEnabled: Boolean, hapticsEnabled: Boolean, voiceThreshold: Float, defaultTarget: Int, onAdd: () -> Unit, onBeginNext: () -> Unit, onSaveIntention: (String) -> Unit, onToneChange: (Boolean) -> Unit, onHapticsChange: (Boolean) -> Unit, onThresholdChange: (Float) -> Unit, onTargetChange: (Int) -> Unit, onPlan: () -> Unit, onStart: () -> Unit, onStop: () -> Unit, onStartPlan: (org.nirmalam.chant.data.PracticePlan) -> Unit, onEditPlan: (org.nirmalam.chant.data.PracticePlan, String, Int, Boolean) -> Unit, onPostponePlan: (org.nirmalam.chant.data.PracticePlan) -> Unit, onSkipPlan: (org.nirmalam.chant.data.PracticePlan) -> Unit, onDeletePlan: (org.nirmalam.chant.data.PracticePlan) -> Unit) {
     var intention by remember { mutableStateOf("") }
     var practiceMode by remember { mutableStateOf(false) }
+    var voiceTracking by remember { mutableStateOf(false) }
+    LaunchedEffect(targetReached) {
+        if (targetReached) voiceTracking = false
+    }
     if (practiceMode) {
         PracticeFocus(count, currentTarget, targetReached, onAdd, onBeginNext, onStart, onStop) { practiceMode = false }
         return
@@ -142,11 +147,14 @@ private fun ChantHome(count: Int, currentTarget: Int, targetReached: Boolean, da
             }
             Spacer(Modifier.height(8.dp))
             if (targetReached) {
-                Button(onClick = onBeginNext, modifier = Modifier.fillMaxWidth().height(56.dp)) { Text("Begin next 108") }
+                Button(onClick = onBeginNext, modifier = Modifier.fillMaxWidth().height(56.dp)) { Text("Begin next practice") }
             } else {
-                Button(onClick = onStart, modifier = Modifier.fillMaxWidth().height(56.dp)) { Text("Start voice tracking") }
-                Spacer(Modifier.height(8.dp))
-                OutlinedButton(onClick = onStop, modifier = Modifier.fillMaxWidth().height(48.dp)) { Text("Stop voice tracking") }
+                Button(onClick = {
+                    if (voiceTracking) onStop() else onStart()
+                    voiceTracking = !voiceTracking
+                }, modifier = Modifier.fillMaxWidth().height(56.dp)) {
+                    Text(if (voiceTracking) "Stop voice tracking" else "Start voice tracking")
+                }
                 Spacer(Modifier.height(8.dp))
                 Button(
                     onClick = onAdd, modifier = Modifier.fillMaxWidth().height(52.dp),
