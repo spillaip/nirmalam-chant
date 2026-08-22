@@ -22,6 +22,9 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0.0"
+        // Ship only the 64-bit Android device ABI. It keeps the Play bundle free of
+        // TensorFlow Lite's non-16 KB-aligned desktop/emulator binaries.
+        ndk { abiFilters += "arm64-v8a" }
     }
 
     buildFeatures { compose = true; buildConfig = true }
