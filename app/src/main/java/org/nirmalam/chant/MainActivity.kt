@@ -3,56 +3,55 @@ package org.nirmalam.chant
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.os.Bundle
 import android.os.Build
+import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Slider
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -239,7 +238,7 @@ private fun ChantHome(count: Int, currentTarget: Int, targetReached: Boolean, da
                 Spacer(Modifier.height(12.dp))
                 SettingsCard(defaultTarget, hapticsEnabled, voiceThreshold, onTargetChange, onHapticsChange, onThresholdChange)
                 Spacer(Modifier.height(12.dp))
-                Text("No ads. No analytics. Audio never leaves this device.", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center, style = MaterialTheme.typography.bodySmall)
+                PrivacyCard()
             }
         }
             }
@@ -250,6 +249,24 @@ private fun ChantHome(count: Int, currentTarget: Int, targetReached: Boolean, da
         title = { Text("ॐ  Practice complete") },
         text = { Text("$currentTarget chants have been recorded privately on this device. Take a quiet breath before beginning again.") },
         confirmButton = { Button(onClick = { showCompletion = false }) { Text("Rest in stillness") } }
+    )
+}
+
+@androidx.compose.runtime.Composable
+private fun PrivacyCard() {
+    var showPolicy by remember { mutableStateOf(false) }
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp)) {
+            Text("Privacy by design", style = MaterialTheme.typography.titleMedium)
+            Text("No ads, analytics, accounts, or cloud sync. Audio is processed live on this device and is never recorded or uploaded.", color = MaterialTheme.colorScheme.secondary)
+            OutlinedButton(onClick = { showPolicy = true }) { Text("Read privacy policy") }
+        }
+    }
+    if (showPolicy) AlertDialog(
+        onDismissRequest = { showPolicy = false },
+        title = { Text("Nirmalam Chant privacy") },
+        text = { Text("Chant counts, intentions, settings, and plans stay in local app storage. Voice tracking uses the microphone only while you start it; audio is processed on-device and is not saved, sent, sold, or shared. You can remove data by clearing the app's storage or uninstalling the app.") },
+        confirmButton = { Button(onClick = { showPolicy = false }) { Text("Close") } }
     )
 }
 
