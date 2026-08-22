@@ -3,10 +3,9 @@ agp = "9.3.1"
 kotlin = "2.2.10"
 coreKtx = "1.15.0"
 activityCompose = "1.10.0"
-composeBom = "2025.01.00"
+composeBom = "2026.08.00"
 lifecycle = "2.8.7"
 room = "2.8.4"
-datastore = "1.1.2"
 tflite = "2.17.0"
 ksp = "2.3.6"
 
@@ -19,7 +18,6 @@ androidx-lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-
 androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }
 androidx-room-ktx = { module = "androidx.room:room-ktx", version.ref = "room" }
 androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
-androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore" }
 androidx-compose-bom = { module = "androidx.compose:compose-bom", version.ref = "composeBom" }
 androidx-ui = { module = "androidx.compose.ui:ui" }
 androidx-ui-graphics = { module = "androidx.compose.ui:ui-graphics" }

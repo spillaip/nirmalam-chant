@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "org.nirmalam.chant"
-    compileSdk = 35
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "org.nirmalam.chant"
@@ -19,14 +19,14 @@ android {
 
     buildFeatures { compose = true; buildConfig = true }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
     }
     packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
 }
 
 kotlin {
-    compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8) }
+    compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11) }
 }
 
 dependencies {
@@ -37,7 +37,6 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
-    implementation(libs.androidx.datastore.preferences)
     implementation(libs.tensorflow.lite)
     ksp(libs.androidx.room.compiler)
 
