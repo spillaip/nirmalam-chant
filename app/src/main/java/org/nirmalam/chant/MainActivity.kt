@@ -61,6 +61,8 @@ import org.nirmalam.chant.ui.NirmalamTheme
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
+private enum class HomeSection(val label: String) { PRACTICE("Practice"), PLANS("Plans"), ACTIVITY("Activity"), SETTINGS("Settings") }
+
 class MainActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
     private var scheduleAfterNotificationPermission = false
@@ -84,8 +86,10 @@ class MainActivity : ComponentActivity() {
             val hapticsEnabled by viewModel.hapticsEnabled.collectAsStateWithLifecycle()
             val voiceThreshold by viewModel.voiceThreshold.collectAsStateWithLifecycle()
             val defaultTarget by viewModel.defaultTarget.collectAsStateWithLifecycle()
+            val canUndoManualTally by viewModel.canUndoManualTally.collectAsStateWithLifecycle()
+            val voiceTracking by ChantTrackingService.isListening.collectAsStateWithLifecycle()
             NirmalamTheme {
-                ChantHome(count, currentTarget, targetReached, dashboard, meditationToneEnabled, hapticsEnabled, voiceThreshold, defaultTarget, viewModel::addManualTally, viewModel::beginNextPractice, viewModel::saveIntention, viewModel::setMeditationToneEnabled, viewModel::setHapticsEnabled, viewModel::setVoiceThreshold, viewModel::setDefaultTarget, ::planPractice, ::requestTracking, ::stopTracking, viewModel::startPlannedPractice, viewModel::editPlan, viewModel::postponePlan, viewModel::skipPlan, viewModel::deletePlan)
+                ChantHome(count, currentTarget, targetReached, dashboard, meditationToneEnabled, hapticsEnabled, voiceThreshold, defaultTarget, canUndoManualTally, voiceTracking, viewModel::addManualTally, viewModel::undoManualTally, viewModel::beginNextPractice, viewModel::saveIntention, viewModel::setMeditationToneEnabled, viewModel::setHapticsEnabled, viewModel::setVoiceThreshold, viewModel::setDefaultTarget, ::planPractice, ::requestTracking, ::stopTracking, viewModel::startPlannedPractice, viewModel::editPlan, viewModel::postponePlan, viewModel::skipPlan, viewModel::deletePlan)
             }
         }
     }
@@ -115,13 +119,12 @@ class MainActivity : ComponentActivity() {
 }
 
 @androidx.compose.runtime.Composable
-private fun ChantHome(count: Int, currentTarget: Int, targetReached: Boolean, dashboard: DashboardState, meditationToneEnabled: Boolean, hapticsEnabled: Boolean, voiceThreshold: Float, defaultTarget: Int, onAdd: () -> Unit, onBeginNext: () -> Unit, onSaveIntention: (String) -> Unit, onToneChange: (Boolean) -> Unit, onHapticsChange: (Boolean) -> Unit, onThresholdChange: (Float) -> Unit, onTargetChange: (Int) -> Unit, onPlan: () -> Unit, onStart: () -> Unit, onStop: () -> Unit, onStartPlan: (org.nirmalam.chant.data.PracticePlan) -> Unit, onEditPlan: (org.nirmalam.chant.data.PracticePlan, String, Int, Boolean) -> Unit, onPostponePlan: (org.nirmalam.chant.data.PracticePlan) -> Unit, onSkipPlan: (org.nirmalam.chant.data.PracticePlan) -> Unit, onDeletePlan: (org.nirmalam.chant.data.PracticePlan) -> Unit) {
+private fun ChantHome(count: Int, currentTarget: Int, targetReached: Boolean, dashboard: DashboardState, meditationToneEnabled: Boolean, hapticsEnabled: Boolean, voiceThreshold: Float, defaultTarget: Int, canUndoManualTally: Boolean, voiceTracking: Boolean, onAdd: () -> Unit, onUndo: () -> Unit, onBeginNext: () -> Unit, onSaveIntention: (String) -> Unit, onToneChange: (Boolean) -> Unit, onHapticsChange: (Boolean) -> Unit, onThresholdChange: (Float) -> Unit, onTargetChange: (Int) -> Unit, onPlan: () -> Unit, onStart: () -> Unit, onStop: () -> Unit, onStartPlan: (org.nirmalam.chant.data.PracticePlan) -> Unit, onEditPlan: (org.nirmalam.chant.data.PracticePlan, String, Int, Boolean) -> Unit, onPostponePlan: (org.nirmalam.chant.data.PracticePlan) -> Unit, onSkipPlan: (org.nirmalam.chant.data.PracticePlan) -> Unit, onDeletePlan: (org.nirmalam.chant.data.PracticePlan) -> Unit) {
     var intention by remember { mutableStateOf("") }
     var practiceMode by remember { mutableStateOf(false) }
-    var voiceTracking by remember { mutableStateOf(false) }
-    LaunchedEffect(targetReached) {
-        if (targetReached) voiceTracking = false
-    }
+    var section by remember { mutableStateOf(HomeSection.PRACTICE) }
+    var showCompletion by remember { mutableStateOf(false) }
+    LaunchedEffect(targetReached) { if (targetReached) showCompletion = true }
     if (practiceMode) {
         PracticeFocus(count, currentTarget, targetReached, onAdd, onBeginNext, onStart, onStop) { practiceMode = false }
         return
@@ -133,6 +136,8 @@ private fun ChantHome(count: Int, currentTarget: Int, targetReached: Boolean, da
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        item { SectionSelector(section) { section = it } }
+        if (section == HomeSection.PRACTICE) {
         item {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
             OmMark()
@@ -151,7 +156,6 @@ private fun ChantHome(count: Int, currentTarget: Int, targetReached: Boolean, da
             } else {
                 Button(onClick = {
                     if (voiceTracking) onStop() else onStart()
-                    voiceTracking = !voiceTracking
                 }, modifier = Modifier.fillMaxWidth().height(56.dp)) {
                     Text(if (voiceTracking) "Stop voice tracking" else "Start voice tracking")
                 }
@@ -160,6 +164,10 @@ private fun ChantHome(count: Int, currentTarget: Int, targetReached: Boolean, da
                     onClick = onAdd, modifier = Modifier.fillMaxWidth().height(52.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
                 ) { Text("Add one manually") }
+                if (canUndoManualTally) {
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedButton(onClick = onUndo, modifier = Modifier.fillMaxWidth()) { Text("Undo last manual count") }
+                }
                 Spacer(Modifier.height(8.dp))
                 OutlinedButton(onClick = { practiceMode = true }, modifier = Modifier.fillMaxWidth().height(48.dp)) { Text("Enter focus practice") }
             }
@@ -176,15 +184,11 @@ private fun ChantHome(count: Int, currentTarget: Int, targetReached: Boolean, da
             }
             Spacer(Modifier.height(8.dp))
             Button(onClick = { onSaveIntention(intention) }, modifier = Modifier.fillMaxWidth()) { Text("Save intention") }
-            Spacer(Modifier.height(12.dp))
-            MeditationToneCard(meditationToneEnabled, onToneChange)
-            Spacer(Modifier.height(12.dp))
-            SettingsCard(defaultTarget, hapticsEnabled, voiceThreshold, onTargetChange, onHapticsChange, onThresholdChange)
-            Spacer(Modifier.height(12.dp))
-            Text("No ads. No analytics. Audio never leaves this device.", textAlign = TextAlign.Center, style = MaterialTheme.typography.bodySmall)
             }
         }
         item { RhythmCard(dashboard.streakDays, dashboard.sessionsThisWeek) }
+        }
+        if (section == HomeSection.PLANS) {
         item { DashboardHeading("Planned & scheduled") }
         if (dashboard.planned.isEmpty()) {
             item {
@@ -198,6 +202,8 @@ private fun ChantHome(count: Int, currentTarget: Int, targetReached: Boolean, da
                 Button(onClick = onPlan, modifier = Modifier.fillMaxWidth()) { Text("Plan another evening practice") }
             }
         }
+        }
+        if (section == HomeSection.ACTIVITY) {
         item { DashboardHeading("Activities performed") }
         if (dashboard.performed.isEmpty()) {
             item { EmptyActivityCard("Your completed chant sessions will appear here.") }
@@ -209,7 +215,42 @@ private fun ChantHome(count: Int, currentTarget: Int, targetReached: Boolean, da
                 })
             }
         }
+        }
+        if (section == HomeSection.SETTINGS) {
+            item {
+                MeditationToneCard(meditationToneEnabled, onToneChange)
+                Spacer(Modifier.height(12.dp))
+                SettingsCard(defaultTarget, hapticsEnabled, voiceThreshold, onTargetChange, onHapticsChange, onThresholdChange)
+                Spacer(Modifier.height(12.dp))
+                Text("No ads. No analytics. Audio never leaves this device.", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center, style = MaterialTheme.typography.bodySmall)
+            }
+        }
     }
+    if (showCompletion) AlertDialog(
+        onDismissRequest = { showCompletion = false },
+        title = { Text("ॐ  Practice complete") },
+        text = { Text("$currentTarget chants have been recorded privately on this device. Take a quiet breath before beginning again.") },
+        confirmButton = { Button(onClick = { showCompletion = false }) { Text("Rest in stillness") } }
+    )
+    }
+}
+
+@androidx.compose.runtime.Composable
+private fun SectionSelector(selected: HomeSection, onSelect: (HomeSection) -> Unit) = Card(Modifier.fillMaxWidth()) {
+    androidx.compose.foundation.layout.Row(
+        modifier = Modifier.fillMaxWidth().padding(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        HomeSection.entries.forEach { section ->
+            val isSelected = section == selected
+            Button(
+                onClick = { onSelect(section) },
+                colors = if (isSelected) ButtonDefaults.buttonColors() else ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            ) { Text(section.label, fontSize = 11.sp) }
+        }
     }
 }
 
@@ -269,6 +310,13 @@ private fun SettingsCard(target: Int, hapticsEnabled: Boolean, threshold: Float,
             }, modifier = Modifier.fillMaxWidth(), singleLine = true,
             label = { Text("Chants in next practice") }
         )
+        Spacer(Modifier.height(8.dp))
+        Text("Mala milestones", style = MaterialTheme.typography.bodyMedium)
+        androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            listOf(27, 54, 108).forEach { milestone ->
+                OutlinedButton(onClick = { onTargetChange(milestone) }) { Text(milestone.toString()) }
+            }
+        }
         Spacer(Modifier.height(8.dp))
         androidx.compose.foundation.layout.Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Column { Text("Haptic feedback"); Text("Pulse after each count", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary) }

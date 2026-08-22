@@ -46,6 +46,7 @@ class ChantRepository(private val dao: ChantDao) {
         TallyResult(updated, reachedTarget = reached, recorded = true)
     }
     suspend fun count(sessionId: String): Int = dao.count(sessionId)
+    suspend fun undoLatestManualTally(sessionId: String): Boolean = dao.deleteLatestManualTally(sessionId) > 0
     fun observeCount(sessionId: String): Flow<Int> = dao.observeCount(sessionId)
     fun recentSessions(): Flow<List<ChantSession>> = dao.observeRecentSessions()
     fun completedActivities(): Flow<List<CompletedActivity>> = dao.observeCompletedActivities()

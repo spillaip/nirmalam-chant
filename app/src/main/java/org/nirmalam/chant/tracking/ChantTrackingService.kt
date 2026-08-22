@@ -11,6 +11,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import org.nirmalam.chant.MainActivity
 import org.nirmalam.chant.NirmalamApplication
 import org.nirmalam.chant.data.TallySource
@@ -23,6 +25,7 @@ class ChantTrackingService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         startForeground(NOTIFICATION_ID, notification())
+        _isListening.value = true
         if (!started.compareAndSet(false, true)) return START_STICKY
         scope.launch {
             val repository = (application as NirmalamApplication).repository
@@ -38,7 +41,7 @@ class ChantTrackingService : Service() {
         return START_STICKY
     }
 
-    override fun onDestroy() { detector?.stop(); started.set(false); super.onDestroy() }
+    override fun onDestroy() { detector?.stop(); started.set(false); _isListening.value = false; super.onDestroy() }
     override fun onBind(intent: Intent?): IBinder? = null
 
     private fun notification() = NotificationCompat.Builder(this, CHANNEL_ID)
@@ -50,6 +53,8 @@ class ChantTrackingService : Service() {
         .build()
 
     companion object {
+        private val _isListening = MutableStateFlow(false)
+        val isListening: StateFlow<Boolean> = _isListening
         private const val CHANNEL_ID = "chant_tracking"
         private const val NOTIFICATION_ID = 108
         fun createChannel(service: android.content.Context) {

@@ -41,10 +41,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val hapticsEnabled: StateFlow<Boolean> = _hapticsEnabled
     private val _voiceThreshold = MutableStateFlow(FeedbackPreferences.voiceThreshold(application))
     val voiceThreshold: StateFlow<Float> = _voiceThreshold
-    private val _defaultTarget = MutableStateFlow(108)
+    private val _defaultTarget = MutableStateFlow(FeedbackPreferences.defaultTarget(application))
     val defaultTarget: StateFlow<Int> = _defaultTarget
     private var currentSession: org.nirmalam.chant.data.ChantSession? = null
     private var countJob: Job? = null
+    private val _canUndoManualTally = MutableStateFlow(false)
+    val canUndoManualTally: StateFlow<Boolean> = _canUndoManualTally
 
     init {
         viewModelScope.launch {
@@ -60,8 +62,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun addManualTally() = viewModelScope.launch {
         val session = currentSession ?: repository.getOrCreateActiveSession().also { currentSession = it }
         val result = repository.record(session, TallySource.MANUAL)
-        if (result.recorded) ChantFeedback.give(getApplication(), result.count)
+        if (result.recorded) {
+            ChantFeedback.give(getApplication(), result.count)
+            _canUndoManualTally.value = true
+        }
         if (result.reachedTarget) _targetReached.value = true
+    }
+
+    fun undoManualTally() = viewModelScope.launch {
+        val session = currentSession ?: return@launch
+        if (repository.undoLatestManualTally(session.id)) {
+            _canUndoManualTally.value = false
+            _targetReached.value = false
+        }
     }
 
     fun planEveningPractice() = viewModelScope.launch {
@@ -88,7 +101,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         FeedbackPreferences.setVoiceThreshold(getApplication(), value)
         _voiceThreshold.value = value
     }
-    fun setDefaultTarget(value: Int) { _defaultTarget.value = value.coerceIn(1, 10_000) }
+    fun setDefaultTarget(value: Int) {
+        val safeValue = value.coerceIn(1, 10_000)
+        FeedbackPreferences.setDefaultTarget(getApplication(), safeValue)
+        _defaultTarget.value = safeValue
+    }
     fun startPlannedPractice(plan: PracticePlan) = viewModelScope.launch { activateSession(repository.beginSessionFromPlan(plan)) }
     fun editPlan(plan: PracticePlan, title: String, targetCount: Int, reminderEnabled: Boolean) = viewModelScope.launch {
         repository.updatePlan(plan, title, plan.scheduledFor, targetCount, reminderEnabled)
@@ -123,6 +140,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         currentSession = session
         _currentTarget.value = session.targetCount
         _targetReached.value = false
+        _canUndoManualTally.value = false
         countJob?.cancel()
         countJob = viewModelScope.launch {
             repository.observeCount(session.id).collect { rawCount ->
