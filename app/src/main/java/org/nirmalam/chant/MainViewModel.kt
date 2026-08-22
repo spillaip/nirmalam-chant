@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import org.nirmalam.chant.data.ChantRepository
 import org.nirmalam.chant.data.TallySource
@@ -27,15 +28,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: ChantRepository = (application as NirmalamApplication).repository
     private val _count = MutableStateFlow(0)
     val count: StateFlow<Int> = _count
+    private val _targetReached = MutableStateFlow(false)
+    val targetReached: StateFlow<Boolean> = _targetReached
     private val _dashboard = MutableStateFlow(DashboardState())
     val dashboard: StateFlow<DashboardState> = _dashboard
     private val _meditationToneEnabled = MutableStateFlow(FeedbackPreferences.isSoundEnabled(application))
     val meditationToneEnabled: StateFlow<Boolean> = _meditationToneEnabled
+    private var currentSession: org.nirmalam.chant.data.ChantSession? = null
+    private var countJob: Job? = null
 
     init {
         viewModelScope.launch {
-            val session = repository.getOrCreateActiveSession()
-            repository.observeCount(session.id).collect { _count.value = it }
+            activateSession(repository.getOrCreateActiveSession())
         }
         viewModelScope.launch {
             repository.completedActivities().combine(repository.plannedActivities()) { performed, planned ->
@@ -45,9 +49,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun addManualTally() = viewModelScope.launch {
-        val session = repository.getOrCreateActiveSession()
-        repository.record(session.id, TallySource.MANUAL)
-        ChantFeedback.give(getApplication(), repository.count(session.id))
+        val session = currentSession ?: repository.getOrCreateActiveSession().also { currentSession = it }
+        val result = repository.record(session, TallySource.MANUAL)
+        if (result.recorded) ChantFeedback.give(getApplication(), result.count)
+        if (result.reachedTarget) _targetReached.value = true
     }
 
     fun planEveningPractice() = viewModelScope.launch {
@@ -65,6 +70,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setMeditationToneEnabled(enabled: Boolean) {
         FeedbackPreferences.setSoundEnabled(getApplication(), enabled)
         _meditationToneEnabled.value = enabled
+    }
+
+    fun beginNextPractice() = viewModelScope.launch {
+        activateSession(repository.beginNextSession())
+    }
+
+    private fun activateSession(session: org.nirmalam.chant.data.ChantSession) {
+        currentSession = session
+        _targetReached.value = false
+        countJob?.cancel()
+        countJob = viewModelScope.launch {
+            repository.observeCount(session.id).collect { rawCount ->
+                _count.value = rawCount.coerceAtMost(session.targetCount)
+                if (rawCount >= session.targetCount) _targetReached.value = true
+            }
+        }
     }
 
     private fun calculateStreak(activities: List<org.nirmalam.chant.data.CompletedActivity>): Int {

@@ -14,6 +14,9 @@ interface ChantDao {
     @Query("UPDATE chant_sessions SET intention = :intention WHERE id = :sessionId")
     suspend fun updateIntention(sessionId: String, intention: String?): Int
 
+    @Query("UPDATE chant_sessions SET endedAt = :endedAt WHERE id = :sessionId AND endedAt IS NULL")
+    suspend fun endSession(sessionId: String, endedAt: java.time.Instant): Int
+
     @Query("SELECT * FROM chant_sessions WHERE endedAt IS NULL ORDER BY startedAt DESC LIMIT 1")
     suspend fun activeSession(): ChantSession?
 

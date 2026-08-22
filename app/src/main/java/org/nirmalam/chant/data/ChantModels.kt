@@ -38,6 +38,8 @@ data class ChantTally(
 
 enum class TallySource { VOICE, MANUAL, HARDWARE_BUTTON }
 
+data class TallyResult(val count: Int, val reachedTarget: Boolean, val recorded: Boolean)
+
 @Entity(tableName = "practice_plans", indices = [Index("scheduledFor")])
 data class PracticePlan(
     @PrimaryKey val id: String = UUID.randomUUID().toString(),

@@ -29,8 +29,9 @@ class ChantTrackingService : Service() {
             val session = repository.getOrCreateActiveSession()
             detector = VoiceChantDetector {
                 scope.launch {
-                    repository.record(session.id, TallySource.VOICE)
-                    ChantFeedback.give(this@ChantTrackingService, repository.count(session.id))
+                    val result = repository.record(session, TallySource.VOICE)
+                    if (result.recorded) ChantFeedback.give(this@ChantTrackingService, result.count)
+                    if (result.reachedTarget) stopSelf()
                 }
             }.also { it.start() }
         }

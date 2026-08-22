@@ -1,16 +1,36 @@
 package org.nirmalam.chant.data
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.time.Instant
 
 class ChantRepository(private val dao: ChantDao) {
+    private val tallyMutex = Mutex()
     suspend fun getOrCreateActiveSession(): ChantSession {
         dao.activeSession()?.let { return it }
         val session = ChantSession()
         dao.insertSession(session)
         return session
     }
-    suspend fun record(sessionId: String, source: TallySource) = dao.insertTally(ChantTally(sessionId = sessionId, source = source))
+    suspend fun beginNextSession(): ChantSession {
+        dao.activeSession()?.let { dao.endSession(it.id, Instant.now()) }
+        val session = ChantSession()
+        dao.insertSession(session)
+        return session
+    }
+    suspend fun record(session: ChantSession, source: TallySource): TallyResult = tallyMutex.withLock {
+        val before = dao.count(session.id)
+        if (before >= session.targetCount) {
+            dao.endSession(session.id, Instant.now())
+            return@withLock TallyResult(before, reachedTarget = true, recorded = false)
+        }
+        dao.insertTally(ChantTally(sessionId = session.id, source = source))
+        val updated = before + 1
+        val reached = updated >= session.targetCount
+        if (reached) dao.endSession(session.id, Instant.now())
+        TallyResult(updated, reachedTarget = reached, recorded = true)
+    }
     suspend fun count(sessionId: String): Int = dao.count(sessionId)
     fun observeCount(sessionId: String): Flow<Int> = dao.observeCount(sessionId)
     fun recentSessions(): Flow<List<ChantSession>> = dao.observeRecentSessions()

@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
@@ -27,6 +29,8 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -72,8 +76,9 @@ class MainActivity : ComponentActivity() {
             val count by viewModel.count.collectAsStateWithLifecycle()
             val dashboard by viewModel.dashboard.collectAsStateWithLifecycle()
             val meditationToneEnabled by viewModel.meditationToneEnabled.collectAsStateWithLifecycle()
+            val targetReached by viewModel.targetReached.collectAsStateWithLifecycle()
             NirmalamTheme {
-                ChantHome(count, dashboard, meditationToneEnabled, viewModel::addManualTally, viewModel::saveIntention, viewModel::setMeditationToneEnabled, ::planPractice, ::requestTracking)
+                ChantHome(count, targetReached, dashboard, meditationToneEnabled, viewModel::addManualTally, viewModel::beginNextPractice, viewModel::saveIntention, viewModel::setMeditationToneEnabled, ::planPractice, ::requestTracking, ::stopTracking)
             }
         }
     }
@@ -88,6 +93,10 @@ class MainActivity : ComponentActivity() {
         ContextCompat.startForegroundService(this, Intent(this, ChantTrackingService::class.java))
     }
 
+    private fun stopTracking() {
+        stopService(Intent(this, ChantTrackingService::class.java))
+    }
+
     private fun planPractice() {
         if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             scheduleAfterNotificationPermission = true
@@ -99,36 +108,42 @@ class MainActivity : ComponentActivity() {
 }
 
 @androidx.compose.runtime.Composable
-private fun ChantHome(count: Int, dashboard: DashboardState, meditationToneEnabled: Boolean, onAdd: () -> Unit, onSaveIntention: (String) -> Unit, onToneChange: (Boolean) -> Unit, onPlan: () -> Unit, onStart: () -> Unit) {
+private fun ChantHome(count: Int, targetReached: Boolean, dashboard: DashboardState, meditationToneEnabled: Boolean, onAdd: () -> Unit, onBeginNext: () -> Unit, onSaveIntention: (String) -> Unit, onToneChange: (Boolean) -> Unit, onPlan: () -> Unit, onStart: () -> Unit, onStop: () -> Unit) {
     var intention by remember { mutableStateOf("") }
     Box(Modifier.fillMaxSize()) {
         MysticBackground()
         LazyColumn(
-        modifier = Modifier.fillMaxWidth().padding(24.dp),
+        modifier = Modifier.fillMaxWidth().statusBarsPadding().navigationBarsPadding().padding(horizontal = 20.dp, vertical = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
             OmMark()
-            Spacer(Modifier.height(22.dp))
+            Spacer(Modifier.height(12.dp))
             Card(Modifier.fillMaxWidth()) {
-                Column(Modifier.fillMaxWidth().padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(Modifier.fillMaxWidth().padding(vertical = 26.dp, horizontal = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("TODAY'S CHANTS", style = MaterialTheme.typography.labelLarge)
                     Text(count.toString(), fontSize = 112.sp, lineHeight = 118.sp, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.primary)
-                    Text("of 108", style = MaterialTheme.typography.titleMedium)
-                    MalaProgress(count)
+                    Text(if (targetReached) "108 complete" else "of 108", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.secondary)
+                    MalaProgress(count, targetReached)
                 }
             }
-            Spacer(Modifier.height(24.dp))
-            Button(onClick = onStart, modifier = Modifier.fillMaxWidth().height(56.dp)) { Text("Start private voice tracking") }
+            Spacer(Modifier.height(8.dp))
+            if (targetReached) {
+                Button(onClick = onBeginNext, modifier = Modifier.fillMaxWidth().height(56.dp)) { Text("Begin next 108") }
+            } else {
+                Button(onClick = onStart, modifier = Modifier.fillMaxWidth().height(56.dp)) { Text("Start voice tracking") }
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(onClick = onStop, modifier = Modifier.fillMaxWidth().height(48.dp)) { Text("Stop voice tracking") }
+                Spacer(Modifier.height(8.dp))
+                Button(
+                    onClick = onAdd, modifier = Modifier.fillMaxWidth().height(52.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
+                ) { Text("Add one manually") }
+            }
             Spacer(Modifier.height(12.dp))
-            Button(
-                onClick = onAdd, modifier = Modifier.fillMaxWidth().height(56.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surface)
-            ) { Text("Add one manually") }
-            Spacer(Modifier.height(12.dp))
-            TextField(
+            OutlinedTextField(
                 value = intention, onValueChange = { intention = it }, modifier = Modifier.fillMaxWidth(),
                 label = { Text("Today's intention") }, singleLine = true
             )
@@ -213,14 +228,14 @@ private fun MeditationToneCard(enabled: Boolean, onChange: (Boolean) -> Unit) = 
 }
 
 @androidx.compose.runtime.Composable
-private fun MalaProgress(count: Int) = Canvas(Modifier.fillMaxWidth().height(42.dp).padding(top = 12.dp)) {
+private fun MalaProgress(count: Int, complete: Boolean) = Canvas(Modifier.fillMaxWidth().height(42.dp).padding(top = 12.dp)) {
     val beadCount = 27
     val spacing = size.width / beadCount
     val radius = (spacing * 0.25f).coerceAtMost(size.height / 3)
     repeat(beadCount) { index ->
         val progressAtBead = (index + 1) * 4
         drawCircle(
-            color = if (count >= progressAtBead) Color(0xFFF0BE71) else Color(0xFF4B625D),
+            color = if (count >= progressAtBead || complete) Color(0xFFF0BE71) else Color(0xFF4B625D),
             radius = radius,
             center = androidx.compose.ui.geometry.Offset(spacing * index + spacing / 2, size.height / 2)
         )
@@ -248,10 +263,9 @@ private fun MysticBackground() {
         animationSpec = infiniteRepeatable(tween(14_000, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "backgroundPhase"
     )
     Canvas(Modifier.fillMaxSize()) {
-        drawRect(Brush.verticalGradient(listOf(Color(0xFF071314), Color(0xFF142D35), Color(0xFF251837))))
-        drawCircle(Color(0x554E8AFF), radius = size.minDimension * (0.30f + phase * 0.10f), center = androidx.compose.ui.geometry.Offset(size.width * (0.18f + phase * 0.2f), size.height * 0.18f))
-        drawCircle(Color(0x44F2B86B), radius = size.minDimension * (0.24f + (1f - phase) * 0.10f), center = androidx.compose.ui.geometry.Offset(size.width * (0.78f - phase * 0.2f), size.height * 0.68f))
-        drawCircle(Color(0x33FFD5AC), radius = size.minDimension * 0.12f, center = androidx.compose.ui.geometry.Offset(size.width * 0.5f, size.height * (0.42f + phase * 0.12f)))
+        drawRect(Brush.verticalGradient(listOf(Color(0xFF061817), Color(0xFF0C2926), Color(0xFF171128))))
+        drawCircle(Color(0x224E8AFF), radius = size.minDimension * (0.22f + phase * 0.05f), center = androidx.compose.ui.geometry.Offset(size.width * (0.16f + phase * 0.08f), size.height * 0.16f))
+        drawCircle(Color(0x2249B98F), radius = size.minDimension * (0.18f + (1f - phase) * 0.06f), center = androidx.compose.ui.geometry.Offset(size.width * (0.82f - phase * 0.08f), size.height * 0.72f))
     }
 }
 
