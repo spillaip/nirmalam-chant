@@ -77,6 +77,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun resetCurrentPractice() = viewModelScope.launch {
+        val session = currentSession ?: return@launch
+        if (repository.resetTallies(session.id)) {
+            _count.value = 0
+            _targetReached.value = false
+            _canUndoManualTally.value = false
+        }
+    }
+
     fun planEveningPractice() = viewModelScope.launch {
         val now = ZonedDateTime.now()
         var scheduled = now.withHour(18).withMinute(0).withSecond(0).withNano(0)

@@ -91,7 +91,7 @@ class MainActivity : ComponentActivity() {
             val canUndoManualTally by viewModel.canUndoManualTally.collectAsStateWithLifecycle()
             val voiceTracking by ChantTrackingService.isListening.collectAsStateWithLifecycle()
             NirmalamTheme {
-                ChantHome(count, currentTarget, targetReached, dashboard, meditationToneEnabled, hapticsEnabled, voiceThreshold, defaultTarget, canUndoManualTally, voiceTracking, viewModel::addManualTally, viewModel::undoManualTally, viewModel::beginNextPractice, viewModel::saveIntention, viewModel::setMeditationToneEnabled, viewModel::setHapticsEnabled, viewModel::setVoiceThreshold, viewModel::setDefaultTarget, ::planPractice, ::requestTracking, ::stopTracking, viewModel::startPlannedPractice, viewModel::editPlan, viewModel::postponePlan, viewModel::skipPlan, viewModel::deletePlan)
+                ChantHome(count, currentTarget, targetReached, dashboard, meditationToneEnabled, hapticsEnabled, voiceThreshold, defaultTarget, canUndoManualTally, voiceTracking, viewModel::addManualTally, viewModel::undoManualTally, { stopTracking(); viewModel.resetCurrentPractice() }, viewModel::beginNextPractice, viewModel::saveIntention, viewModel::setMeditationToneEnabled, viewModel::setHapticsEnabled, viewModel::setVoiceThreshold, viewModel::setDefaultTarget, ::planPractice, ::requestTracking, ::stopTracking, viewModel::startPlannedPractice, viewModel::editPlan, viewModel::postponePlan, viewModel::skipPlan, viewModel::deletePlan)
             }
         }
     }
@@ -121,12 +121,22 @@ class MainActivity : ComponentActivity() {
 }
 
 @androidx.compose.runtime.Composable
-private fun ChantHome(count: Int, currentTarget: Int, targetReached: Boolean, dashboard: DashboardState, meditationToneEnabled: Boolean, hapticsEnabled: Boolean, voiceThreshold: Float, defaultTarget: Int, canUndoManualTally: Boolean, voiceTracking: Boolean, onAdd: () -> Unit, onUndo: () -> Unit, onBeginNext: () -> Unit, onSaveIntention: (String) -> Unit, onToneChange: (Boolean) -> Unit, onHapticsChange: (Boolean) -> Unit, onThresholdChange: (Float) -> Unit, onTargetChange: (Int) -> Unit, onPlan: () -> Unit, onStart: () -> Unit, onStop: () -> Unit, onStartPlan: (com.nirmalamgroup.nirmalamchant.data.PracticePlan) -> Unit, onEditPlan: (com.nirmalamgroup.nirmalamchant.data.PracticePlan, String, Int, Boolean) -> Unit, onPostponePlan: (com.nirmalamgroup.nirmalamchant.data.PracticePlan) -> Unit, onSkipPlan: (com.nirmalamgroup.nirmalamchant.data.PracticePlan) -> Unit, onDeletePlan: (com.nirmalamgroup.nirmalamchant.data.PracticePlan) -> Unit) {
+private fun ChantHome(count: Int, currentTarget: Int, targetReached: Boolean, dashboard: DashboardState, meditationToneEnabled: Boolean, hapticsEnabled: Boolean, voiceThreshold: Float, defaultTarget: Int, canUndoManualTally: Boolean, voiceTracking: Boolean, onAdd: () -> Unit, onUndo: () -> Unit, onReset: () -> Unit, onBeginNext: () -> Unit, onSaveIntention: (String) -> Unit, onToneChange: (Boolean) -> Unit, onHapticsChange: (Boolean) -> Unit, onThresholdChange: (Float) -> Unit, onTargetChange: (Int) -> Unit, onPlan: () -> Unit, onStart: () -> Unit, onStop: () -> Unit, onStartPlan: (com.nirmalamgroup.nirmalamchant.data.PracticePlan) -> Unit, onEditPlan: (com.nirmalamgroup.nirmalamchant.data.PracticePlan, String, Int, Boolean) -> Unit, onPostponePlan: (com.nirmalamgroup.nirmalamchant.data.PracticePlan) -> Unit, onSkipPlan: (com.nirmalamgroup.nirmalamchant.data.PracticePlan) -> Unit, onDeletePlan: (com.nirmalamgroup.nirmalamchant.data.PracticePlan) -> Unit) {
     var intention by remember { mutableStateOf("") }
     var practiceMode by remember { mutableStateOf(false) }
     var section by remember { mutableStateOf(HomeSection.PRACTICE) }
     var showCompletion by remember { mutableStateOf(false) }
+    var showResetConfirmation by remember { mutableStateOf(false) }
     LaunchedEffect(targetReached) { if (targetReached) showCompletion = true }
+    if (showResetConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showResetConfirmation = false },
+            title = { Text("Reset this chant?") },
+            text = { Text("This clears the current count and stops voice tracking. Your intention and settings stay unchanged.") },
+            confirmButton = { Button(onClick = { onReset(); showResetConfirmation = false }) { Text("Reset count") } },
+            dismissButton = { OutlinedButton(onClick = { showResetConfirmation = false }) { Text("Keep counting") } }
+        )
+    }
     if (practiceMode) {
         PracticeFocus(count, currentTarget, targetReached, onAdd, onBeginNext, onStart, onStop) { practiceMode = false }
         return
@@ -183,6 +193,10 @@ private fun ChantHome(count: Int, currentTarget: Int, targetReached: Boolean, da
                 if (canUndoManualTally) {
                     Spacer(Modifier.height(8.dp))
                     OutlinedButton(onClick = onUndo, modifier = Modifier.fillMaxWidth()) { Text("Undo last manual count") }
+                }
+                if (count > 0) {
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedButton(onClick = { showResetConfirmation = true }, modifier = Modifier.fillMaxWidth()) { Text("Reset current chant") }
                 }
                 Spacer(Modifier.height(8.dp))
                 OutlinedButton(onClick = { practiceMode = true }, modifier = Modifier.fillMaxWidth().height(48.dp)) { Text("Enter focus practice") }

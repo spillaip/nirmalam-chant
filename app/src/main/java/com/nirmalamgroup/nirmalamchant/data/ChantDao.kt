@@ -14,6 +14,9 @@ interface ChantDao {
     @Query("DELETE FROM chant_tallies WHERE id = (SELECT id FROM chant_tallies WHERE sessionId = :sessionId AND source = 'MANUAL' ORDER BY recordedAt DESC, rowid DESC LIMIT 1)")
     suspend fun deleteLatestManualTally(sessionId: String): Int
 
+    @Query("DELETE FROM chant_tallies WHERE sessionId = :sessionId")
+    suspend fun deleteTalliesForSession(sessionId: String): Int
+
     @Query("UPDATE chant_sessions SET targetCount = :targetCount WHERE id = :sessionId AND endedAt IS NULL")
     suspend fun updateSessionTarget(sessionId: String, targetCount: Int): Int
 
