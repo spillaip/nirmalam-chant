@@ -28,6 +28,9 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.OutlinedButton
@@ -61,7 +64,7 @@ import org.nirmalam.chant.ui.NirmalamTheme
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-private enum class HomeSection(val label: String) { PRACTICE("Practice"), PLANS("Plans"), ACTIVITY("Activity"), SETTINGS("Settings") }
+private enum class HomeSection(val label: String) { PRACTICE("Practice"), JOURNEY("Journey"), SETTINGS("Settings") }
 
 class MainActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
@@ -129,14 +132,28 @@ private fun ChantHome(count: Int, currentTarget: Int, targetReached: Boolean, da
         PracticeFocus(count, currentTarget, targetReached, onAdd, onBeginNext, onStart, onStop) { practiceMode = false }
         return
     }
-    Box(Modifier.fillMaxSize()) {
-        MysticBackground()
-        LazyColumn(
-        modifier = Modifier.fillMaxWidth().statusBarsPadding().navigationBarsPadding().padding(horizontal = 20.dp, vertical = 16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        item { SectionSelector(section) { section = it } }
+    Scaffold(
+        containerColor = Color.Transparent,
+        bottomBar = {
+            NavigationBar {
+                HomeSection.entries.forEach { destination ->
+                    NavigationBarItem(
+                        selected = destination == section,
+                        onClick = { section = destination },
+                        icon = { Text(when (destination) { HomeSection.PRACTICE -> "ॐ"; HomeSection.JOURNEY -> "◷"; HomeSection.SETTINGS -> "⚙" }) },
+                        label = { Text(destination.label) }
+                    )
+                }
+            }
+        }
+    ) { contentPadding ->
+        Box(Modifier.fillMaxSize()) {
+            MysticBackground()
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth().statusBarsPadding().padding(contentPadding).padding(horizontal = 20.dp, vertical = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
         if (section == HomeSection.PRACTICE) {
         item {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -188,7 +205,7 @@ private fun ChantHome(count: Int, currentTarget: Int, targetReached: Boolean, da
         }
         item { RhythmCard(dashboard.streakDays, dashboard.sessionsThisWeek) }
         }
-        if (section == HomeSection.PLANS) {
+        if (section == HomeSection.JOURNEY) {
         item { DashboardHeading("Planned & scheduled") }
         if (dashboard.planned.isEmpty()) {
             item {
@@ -203,7 +220,7 @@ private fun ChantHome(count: Int, currentTarget: Int, targetReached: Boolean, da
             }
         }
         }
-        if (section == HomeSection.ACTIVITY) {
+        if (section == HomeSection.JOURNEY) {
         item { DashboardHeading("Activities performed") }
         if (dashboard.performed.isEmpty()) {
             item { EmptyActivityCard("Your completed chant sessions will appear here.") }
@@ -225,6 +242,8 @@ private fun ChantHome(count: Int, currentTarget: Int, targetReached: Boolean, da
                 Text("No ads. No analytics. Audio never leaves this device.", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center, style = MaterialTheme.typography.bodySmall)
             }
         }
+            }
+        }
     }
     if (showCompletion) AlertDialog(
         onDismissRequest = { showCompletion = false },
@@ -232,26 +251,6 @@ private fun ChantHome(count: Int, currentTarget: Int, targetReached: Boolean, da
         text = { Text("$currentTarget chants have been recorded privately on this device. Take a quiet breath before beginning again.") },
         confirmButton = { Button(onClick = { showCompletion = false }) { Text("Rest in stillness") } }
     )
-    }
-}
-
-@androidx.compose.runtime.Composable
-private fun SectionSelector(selected: HomeSection, onSelect: (HomeSection) -> Unit) = Card(Modifier.fillMaxWidth()) {
-    androidx.compose.foundation.layout.Row(
-        modifier = Modifier.fillMaxWidth().padding(6.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        HomeSection.entries.forEach { section ->
-            val isSelected = section == selected
-            Button(
-                onClick = { onSelect(section) },
-                colors = if (isSelected) ButtonDefaults.buttonColors() else ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            ) { Text(section.label, fontSize = 11.sp) }
-        }
-    }
 }
 
 @androidx.compose.runtime.Composable
