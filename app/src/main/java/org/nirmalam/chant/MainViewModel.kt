@@ -90,6 +90,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
     fun setDefaultTarget(value: Int) { _defaultTarget.value = value.coerceIn(1, 10_000) }
     fun startPlannedPractice(plan: PracticePlan) = viewModelScope.launch { activateSession(repository.beginSessionFromPlan(plan)) }
+    fun editPlan(plan: PracticePlan, title: String, targetCount: Int, reminderEnabled: Boolean) = viewModelScope.launch {
+        repository.updatePlan(plan, title, plan.scheduledFor, targetCount, reminderEnabled)
+        if (reminderEnabled) {
+            LocalReminderScheduler.schedule(getApplication(), plan.id, title.ifBlank { plan.title }, plan.scheduledFor.toEpochMilli())
+        } else {
+            LocalReminderScheduler.cancel(getApplication(), plan.id)
+        }
+    }
     fun skipPlan(plan: PracticePlan) = viewModelScope.launch {
         LocalReminderScheduler.cancel(getApplication(), plan.id)
         repository.skipPlan(plan)

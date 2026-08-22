@@ -26,6 +26,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -83,7 +84,7 @@ class MainActivity : ComponentActivity() {
             val voiceThreshold by viewModel.voiceThreshold.collectAsStateWithLifecycle()
             val defaultTarget by viewModel.defaultTarget.collectAsStateWithLifecycle()
             NirmalamTheme {
-                ChantHome(count, currentTarget, targetReached, dashboard, meditationToneEnabled, hapticsEnabled, voiceThreshold, defaultTarget, viewModel::addManualTally, viewModel::beginNextPractice, viewModel::saveIntention, viewModel::setMeditationToneEnabled, viewModel::setHapticsEnabled, viewModel::setVoiceThreshold, viewModel::setDefaultTarget, ::planPractice, ::requestTracking, ::stopTracking, viewModel::startPlannedPractice, viewModel::postponePlan, viewModel::skipPlan, viewModel::deletePlan)
+                ChantHome(count, currentTarget, targetReached, dashboard, meditationToneEnabled, hapticsEnabled, voiceThreshold, defaultTarget, viewModel::addManualTally, viewModel::beginNextPractice, viewModel::saveIntention, viewModel::setMeditationToneEnabled, viewModel::setHapticsEnabled, viewModel::setVoiceThreshold, viewModel::setDefaultTarget, ::planPractice, ::requestTracking, ::stopTracking, viewModel::startPlannedPractice, viewModel::editPlan, viewModel::postponePlan, viewModel::skipPlan, viewModel::deletePlan)
             }
         }
     }
@@ -113,7 +114,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @androidx.compose.runtime.Composable
-private fun ChantHome(count: Int, currentTarget: Int, targetReached: Boolean, dashboard: DashboardState, meditationToneEnabled: Boolean, hapticsEnabled: Boolean, voiceThreshold: Float, defaultTarget: Int, onAdd: () -> Unit, onBeginNext: () -> Unit, onSaveIntention: (String) -> Unit, onToneChange: (Boolean) -> Unit, onHapticsChange: (Boolean) -> Unit, onThresholdChange: (Float) -> Unit, onTargetChange: (Int) -> Unit, onPlan: () -> Unit, onStart: () -> Unit, onStop: () -> Unit, onStartPlan: (org.nirmalam.chant.data.PracticePlan) -> Unit, onPostponePlan: (org.nirmalam.chant.data.PracticePlan) -> Unit, onSkipPlan: (org.nirmalam.chant.data.PracticePlan) -> Unit, onDeletePlan: (org.nirmalam.chant.data.PracticePlan) -> Unit) {
+private fun ChantHome(count: Int, currentTarget: Int, targetReached: Boolean, dashboard: DashboardState, meditationToneEnabled: Boolean, hapticsEnabled: Boolean, voiceThreshold: Float, defaultTarget: Int, onAdd: () -> Unit, onBeginNext: () -> Unit, onSaveIntention: (String) -> Unit, onToneChange: (Boolean) -> Unit, onHapticsChange: (Boolean) -> Unit, onThresholdChange: (Float) -> Unit, onTargetChange: (Int) -> Unit, onPlan: () -> Unit, onStart: () -> Unit, onStop: () -> Unit, onStartPlan: (org.nirmalam.chant.data.PracticePlan) -> Unit, onEditPlan: (org.nirmalam.chant.data.PracticePlan, String, Int, Boolean) -> Unit, onPostponePlan: (org.nirmalam.chant.data.PracticePlan) -> Unit, onSkipPlan: (org.nirmalam.chant.data.PracticePlan) -> Unit, onDeletePlan: (org.nirmalam.chant.data.PracticePlan) -> Unit) {
     var intention by remember { mutableStateOf("") }
     var practiceMode by remember { mutableStateOf(false) }
     if (practiceMode) {
@@ -183,7 +184,7 @@ private fun ChantHome(count: Int, currentTarget: Int, targetReached: Boolean, da
             }
         } else {
             items(dashboard.planned, key = { it.id }) { plan ->
-                PlanCard(plan, onStartPlan, onPostponePlan, onSkipPlan, onDeletePlan)
+                PlanCard(plan, onStartPlan, onEditPlan, onPostponePlan, onSkipPlan, onDeletePlan)
             }
             item {
                 Button(onClick = onPlan, modifier = Modifier.fillMaxWidth()) { Text("Plan another evening practice") }
@@ -273,19 +274,42 @@ private fun SettingsCard(target: Int, hapticsEnabled: Boolean, threshold: Float,
 }
 
 @androidx.compose.runtime.Composable
-private fun PlanCard(plan: org.nirmalam.chant.data.PracticePlan, onStart: (org.nirmalam.chant.data.PracticePlan) -> Unit, onPostpone: (org.nirmalam.chant.data.PracticePlan) -> Unit, onSkip: (org.nirmalam.chant.data.PracticePlan) -> Unit, onDelete: (org.nirmalam.chant.data.PracticePlan) -> Unit) = Card(Modifier.fillMaxWidth()) {
-    Column(Modifier.padding(16.dp)) {
-        Text(plan.title, style = MaterialTheme.typography.titleMedium)
-        Text("${formatActivityTime(plan.scheduledFor)} · ${plan.targetCount} chants", color = MaterialTheme.colorScheme.secondary)
-        androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = { onStart(plan) }) { Text("Start") }
-            OutlinedButton(onClick = { onPostpone(plan) }) { Text("Tomorrow") }
-        }
-        androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = { onSkip(plan) }) { Text("Skip") }
-            OutlinedButton(onClick = { onDelete(plan) }) { Text("Delete") }
+private fun PlanCard(plan: org.nirmalam.chant.data.PracticePlan, onStart: (org.nirmalam.chant.data.PracticePlan) -> Unit, onEdit: (org.nirmalam.chant.data.PracticePlan, String, Int, Boolean) -> Unit, onPostpone: (org.nirmalam.chant.data.PracticePlan) -> Unit, onSkip: (org.nirmalam.chant.data.PracticePlan) -> Unit, onDelete: (org.nirmalam.chant.data.PracticePlan) -> Unit) {
+    var editing by remember { mutableStateOf(false) }
+    var title by remember(plan.id) { mutableStateOf(plan.title) }
+    var target by remember(plan.id) { mutableStateOf(plan.targetCount.toString()) }
+    var reminderEnabled by remember(plan.id) { mutableStateOf(plan.reminderEnabled) }
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp)) {
+            Text(plan.title, style = MaterialTheme.typography.titleMedium)
+            Text("${formatActivityTime(plan.scheduledFor)} · ${plan.targetCount} chants", color = MaterialTheme.colorScheme.secondary)
+            androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = { onStart(plan) }) { Text("Start") }
+                OutlinedButton(onClick = { editing = true }) { Text("Edit") }
+                OutlinedButton(onClick = { onPostpone(plan) }) { Text("Tomorrow") }
+            }
+            androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = { onSkip(plan) }) { Text("Skip") }
+                OutlinedButton(onClick = { onDelete(plan) }) { Text("Delete") }
+            }
         }
     }
+    if (editing) AlertDialog(
+        onDismissRequest = { editing = false },
+        title = { Text("Edit practice") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(title, { title = it }, label = { Text("Practice name") }, singleLine = true)
+                OutlinedTextField(target, { target = it.filter(Char::isDigit).take(5) }, label = { Text("Chant target") }, singleLine = true)
+                androidx.compose.foundation.layout.Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text("Local reminder")
+                    Switch(reminderEnabled, { reminderEnabled = it })
+                }
+            }
+        },
+        confirmButton = { Button(onClick = { onEdit(plan, title, target.toIntOrNull() ?: plan.targetCount, reminderEnabled); editing = false }) { Text("Save") } },
+        dismissButton = { OutlinedButton(onClick = { editing = false }) { Text("Cancel") } }
+    )
 }
 
 @androidx.compose.runtime.Composable
