@@ -2,6 +2,10 @@
 
 An ad-free, privacy-first Android chanting counter for phone, tablet, foldables, and Android TV. The initial project implements local persistence, a device-only voice-processing pipeline, and a responsive Compose surface.
 
+## Production release
+
+**Version 1.0.0** is the first production release. It is distributed as an Android App Bundle under the package name `com.nirmalamgroup.nirmalamchant`. Release builds target 64-bit ARM Android devices and retain 16 KB page-size compatibility for the bundled native TensorFlow Lite runtime.
+
 ## Included
 
 - Room/SQLite `chant_sessions` and microsecond-timestamped `chant_tallies` tables.
@@ -31,7 +35,7 @@ Actual emulator captures and a short Play-review demonstration of the user-initi
 - [`nirmalam-tablet-practice.png`](play-store/nirmalam-tablet-practice.png)
 - [`nirmalam-foreground-microphone-demo.mp4`](play-store/nirmalam-foreground-microphone-demo.mp4)
 
-## Before release
+## Future enhancements
 
 1. Supply and validate a trained bundled TFLite chant classifier. Never upload raw audio.
 2. Optionally add licensed temple-bell/singing-bowl assets for additional feedback choices.
