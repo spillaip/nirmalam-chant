@@ -4,7 +4,13 @@ An ad-free, privacy-first Android chanting counter for phone, tablet, foldables,
 
 ## Production release
 
-**Version 1.0.0** is the first production release. It is distributed as an Android App Bundle under the package name `com.nirmalamgroup.nirmalamchant`. Release builds target 64-bit ARM Android devices and retain 16 KB page-size compatibility for the bundled native TensorFlow Lite runtime.
+**Version 1.0.1** is the current production release. It is distributed as an Android App Bundle under the package name `com.nirmalamgroup.nirmalamchant`. Release builds target 64-bit ARM Android devices and retain 16 KB page-size compatibility for the bundled native TensorFlow Lite runtime.
+
+### 1.0.1 release notes
+
+- Added a confirmation-protected reset for the current chant.
+- Clarified the user-initiated Start/Stop voice-tracking flow.
+- Updated the app target to Android API 36.
 
 ## Included
 
