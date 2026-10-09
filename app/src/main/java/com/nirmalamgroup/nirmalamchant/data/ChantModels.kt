@@ -8,6 +8,14 @@ import androidx.room.TypeConverter
 import java.time.Instant
 import java.util.UUID
 
+@Entity(tableName = "chant_profiles")
+data class ChantProfile(
+    @PrimaryKey val id: String = UUID.randomUUID().toString(),
+    val name: String,
+    val targetCount: Int = 108,
+    val intervalSeconds: Int = 3
+)
+
 @Entity(tableName = "chant_sessions")
 data class ChantSession(
     @PrimaryKey val id: String = UUID.randomUUID().toString(),
@@ -16,7 +24,8 @@ data class ChantSession(
     val title: String = "Daily practice",
     val targetCount: Int = 108,
     val intention: String? = null,
-    val practicePlanId: String? = null
+    val practicePlanId: String? = null,
+    val profileId: String? = null
 )
 
 @Entity(

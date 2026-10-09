@@ -20,8 +20,8 @@ android {
         applicationId = "com.nirmalamgroup.nirmalamchant"
         minSdk = 26
         targetSdk = 36
-        versionCode = 2
-        versionName = "1.0.1"
+        versionCode = 3
+        versionName = "1.0.3"
     }
 
     buildFeatures { compose = true; buildConfig = true }
@@ -38,9 +38,7 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
-            // Ship only the 64-bit Android device ABI. It keeps the Play bundle free
-            // of TensorFlow Lite's non-16 KB-aligned desktop/emulator binaries.
-            // Debug builds retain emulator ABIs so they can be captured and tested.
+            // Preserve the existing 64-bit release ABI policy; debug builds support emulators.
             ndk { abiFilters += "arm64-v8a" }
             signingConfig = signingConfigs.findByName("release")
         }
@@ -64,7 +62,6 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
-    implementation(libs.tensorflow.lite)
     ksp(libs.androidx.room.compiler)
 
     implementation(platform(libs.androidx.compose.bom))

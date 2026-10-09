@@ -1,12 +1,11 @@
 [versions]
-agp = "9.3.1"
+agp = "9.4.1"
 kotlin = "2.2.10"
 coreKtx = "1.15.0"
 activityCompose = "1.10.0"
 composeBom = "2026.08.00"
 lifecycle = "2.8.7"
 room = "2.8.4"
-tflite = "2.17.0"
 ksp = "2.3.6"
 
 [libraries]
@@ -24,7 +23,6 @@ androidx-ui-graphics = { module = "androidx.compose.ui:ui-graphics" }
 androidx-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview" }
 androidx-material3 = { module = "androidx.compose.material3:material3" }
 androidx-ui-tooling = { module = "androidx.compose.ui:ui-tooling" }
-tensorflow-lite = { module = "org.tensorflow:tensorflow-lite", version.ref = "tflite" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

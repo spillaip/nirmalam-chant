@@ -14,15 +14,18 @@ import com.nirmalamgroup.nirmalamchant.tracking.ChantFeedback
 import com.nirmalamgroup.nirmalamchant.tracking.FeedbackPreferences
 import com.nirmalamgroup.nirmalamchant.reminders.LocalReminderScheduler
 import java.time.ZonedDateTime
+import java.time.temporal.ChronoUnit
 import java.time.LocalDate
 import java.time.ZoneId
 import com.nirmalamgroup.nirmalamchant.data.PracticePlan
+import com.nirmalamgroup.nirmalamchant.data.ChantProfile
 
 data class DashboardState(
     val performed: List<com.nirmalamgroup.nirmalamchant.data.CompletedActivity> = emptyList(),
     val planned: List<com.nirmalamgroup.nirmalamchant.data.PracticePlan> = emptyList(),
     val streakDays: Int = 0,
-    val sessionsThisWeek: Int = 0
+    val sessionsThisWeek: Int = 0,
+    val completedForInsights: List<com.nirmalamgroup.nirmalamchant.data.CompletedActivity> = emptyList()
 )
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -39,10 +42,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val meditationToneEnabled: StateFlow<Boolean> = _meditationToneEnabled
     private val _hapticsEnabled = MutableStateFlow(FeedbackPreferences.isHapticsEnabled(application))
     val hapticsEnabled: StateFlow<Boolean> = _hapticsEnabled
-    private val _voiceThreshold = MutableStateFlow(FeedbackPreferences.voiceThreshold(application))
-    val voiceThreshold: StateFlow<Float> = _voiceThreshold
     private val _defaultTarget = MutableStateFlow(FeedbackPreferences.defaultTarget(application))
     val defaultTarget: StateFlow<Int> = _defaultTarget
+    private val _intention = MutableStateFlow("")
+    val intention: StateFlow<String> = _intention
+    private val _profiles = MutableStateFlow<List<ChantProfile>>(emptyList())
+    val profiles: StateFlow<List<ChantProfile>> = _profiles
+    private val _selectedProfileId = MutableStateFlow<String?>(null)
+    val selectedProfileId: StateFlow<String?> = _selectedProfileId
+    private val selectedPrefs = application.getSharedPreferences("chant_profile_selection", 0)
+    private var selectedProfile: ChantProfile? = null
+
     private var currentSession: com.nirmalamgroup.nirmalamchant.data.ChantSession? = null
     private var countJob: Job? = null
     private val _canUndoManualTally = MutableStateFlow(false)
@@ -50,21 +60,55 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         viewModelScope.launch {
-            activateSession(repository.getOrCreateActiveSession())
+            repository.profiles().collect { list ->
+                _profiles.value = list
+                if (selectedProfile == null && list.isNotEmpty()) {
+                    val saved = selectedPrefs.getString("id", null)
+                    chooseProfileInternal(list.firstOrNull { it.id == saved } ?: list.first())
+                }
+            }
         }
         viewModelScope.launch {
-            repository.completedActivities().combine(repository.plannedActivities()) { performed, planned ->
-                DashboardState(performed, planned, calculateStreak(performed), sessionsThisWeek(performed))
+            // Legacy unassigned sessions remain in the database and Journey history.
+            if (repository.getOrCreateActiveSession().profileId == null) { /* preserve legacy history */ }
+        }
+        viewModelScope.launch {
+            combine(repository.completedActivities(), repository.plannedActivities(), repository.allCompletedActivities()) { performed, planned, all ->
+                DashboardState(performed, planned, calculateStreak(all), sessionsThisWeek(all), all)
             }.collect { _dashboard.value = it }
         }
     }
 
+    fun selectProfile(id: String) = viewModelScope.launch {
+        _profiles.value.firstOrNull { it.id == id }?.let { chooseProfileInternal(it) }
+    }
+    private suspend fun chooseProfileInternal(profile: ChantProfile) {
+        selectedProfile = profile
+        _selectedProfileId.value = profile.id
+        selectedPrefs.edit().putString("id", profile.id).apply()
+        activateSession(repository.profileSession(profile))
+    }
+    fun saveChantProfile(id: String?, name: String, target: Int, seconds: Int) = viewModelScope.launch {
+        if (name.isBlank() || target !in 1..10000 || seconds !in 1..3600) return@launch
+        if (id == null) {
+            repository.createProfile(name, target, seconds)?.let { chooseProfileInternal(it) }
+        } else {
+            val old = _profiles.value.firstOrNull { it.id == id } ?: return@launch
+            val updated = old.copy(name = name.trim(), targetCount = target, intervalSeconds = seconds)
+            repository.saveProfile(updated)
+            if (_selectedProfileId.value == id) {
+                selectedProfile = updated
+                // New target applies to the next session; do not mutate prior counts.
+            }
+        }
+    }
+
     fun addManualTally() = viewModelScope.launch {
-        val session = currentSession ?: repository.getOrCreateActiveSession().also { currentSession = it }
+        val session = currentSession ?: return@launch
         val result = repository.record(session, TallySource.MANUAL)
         if (result.recorded) {
             ChantFeedback.give(getApplication(), result.count)
-            _canUndoManualTally.value = true
+            _canUndoManualTally.value = !result.reachedTarget
         }
         if (result.reachedTarget) _targetReached.value = true
     }
@@ -95,7 +139,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun saveIntention(value: String) = viewModelScope.launch {
-        repository.setIntention(repository.getOrCreateActiveSession().id, value)
+        val session = currentSession ?: repository.getOrCreateActiveSession()
+        repository.setIntention(session.id, value)
+        _intention.value = value.trim()
     }
 
     fun setMeditationToneEnabled(enabled: Boolean) {
@@ -105,10 +151,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setHapticsEnabled(enabled: Boolean) {
         FeedbackPreferences.setHapticsEnabled(getApplication(), enabled)
         _hapticsEnabled.value = enabled
-    }
-    fun setVoiceThreshold(value: Float) {
-        FeedbackPreferences.setVoiceThreshold(getApplication(), value)
-        _voiceThreshold.value = value
     }
     fun setDefaultTarget(value: Int) {
         val safeValue = value.coerceIn(1, 10_000)
@@ -133,7 +175,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         repository.deletePlan(plan)
     }
     fun postponePlan(plan: PracticePlan) = viewModelScope.launch {
-        val scheduledFor = plan.scheduledFor.plusSeconds(86_400)
+        val scheduledFor = plan.scheduledFor.atZone(ZoneId.systemDefault()).plusDays(1).toInstant()
         repository.updatePlan(plan, plan.title, scheduledFor, plan.targetCount, plan.reminderEnabled)
         if (plan.reminderEnabled) {
             LocalReminderScheduler.schedule(getApplication(), plan.id, plan.title, scheduledFor.toEpochMilli())
@@ -141,20 +183,26 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun beginNextPractice() = viewModelScope.launch {
-        val session = repository.beginNextSession()
-        activateSession(repository.updateActiveTarget(session, _defaultTarget.value))
+        val session = selectedProfile?.let { repository.nextProfileSession(it) }
+            ?: repository.beginNextSession()
+        activateSession(session)
     }
 
     private fun activateSession(session: com.nirmalamgroup.nirmalamchant.data.ChantSession) {
         currentSession = session
         _currentTarget.value = session.targetCount
+        _intention.value = session.intention.orEmpty()
         _targetReached.value = false
+        _count.value = 0
         _canUndoManualTally.value = false
         countJob?.cancel()
         countJob = viewModelScope.launch {
-            repository.observeCount(session.id).collect { rawCount ->
+            repository.observeCount(session.id).combine(repository.observeManualCount(session.id)) { count, manual -> count to manual }
+                .collect { (rawCount, manualCount) ->
                 _count.value = rawCount.coerceAtMost(session.targetCount)
-                if (rawCount >= session.targetCount) _targetReached.value = true
+                _targetReached.value = rawCount >= session.targetCount
+                // Manual undo must not be enabled by voice-only tallies.
+                _canUndoManualTally.value = manualCount > 0 && rawCount < session.targetCount
             }
         }
     }

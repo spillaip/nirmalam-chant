@@ -18,10 +18,10 @@ object ChantFeedback {
             @Suppress("DEPRECATION") context.getSystemService(Vibrator::class.java)
         }
         if (!vibrator.hasVibrator()) return
-        val effect = if (count % 108 == 0) {
-            VibrationEffect.createWaveform(longArrayOf(0, 35, 70, 55), -1)
+        val effect = if (count == 27 || count == 54 || count == 108) {
+            VibrationEffect.createWaveform(longArrayOf(0, 24, 55, 32), -1)
         } else {
-            VibrationEffect.createOneShot(22, VibrationEffect.DEFAULT_AMPLITUDE)
+            VibrationEffect.createOneShot(12, VibrationEffect.DEFAULT_AMPLITUDE)
         }
         vibrator.vibrate(effect)
     }

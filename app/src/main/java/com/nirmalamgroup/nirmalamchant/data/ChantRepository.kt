@@ -7,52 +7,36 @@ import java.time.Instant
 
 class ChantRepository(private val dao: ChantDao) {
     private val tallyMutex = Mutex()
-    suspend fun getOrCreateActiveSession(): ChantSession {
-        dao.activeSession()?.let { return it }
-        val session = ChantSession()
-        dao.insertSession(session)
-        return session
+    fun profiles(): Flow<List<ChantProfile>> = dao.observeProfiles()
+    suspend fun createProfile(name: String, target: Int, seconds: Int): ChantProfile? {
+        if (dao.profileCount() >= 5) return null
+        return ChantProfile(name = name.trim().take(80), targetCount = target.coerceIn(1, 10000), intervalSeconds = seconds.coerceIn(1, 3600)).also { dao.insertProfile(it) }
     }
-    suspend fun beginNextSession(): ChantSession {
-        dao.activeSession()?.let { dao.endSession(it.id, Instant.now()) }
-        val session = ChantSession()
-        dao.insertSession(session)
-        return session
-    }
-    suspend fun beginSessionFromPlan(plan: PracticePlan): ChantSession {
-        dao.activeSession()?.let { dao.endSession(it.id, Instant.now()) }
-        val session = ChantSession(title = plan.title, targetCount = plan.targetCount, practicePlanId = plan.id)
-        dao.insertSession(session)
-        return session
-    }
+    suspend fun saveProfile(profile: ChantProfile) = dao.updateProfile(profile.id, profile.name.trim().take(80), profile.targetCount.coerceIn(1, 10000), profile.intervalSeconds.coerceIn(1, 3600))
+    suspend fun profileSession(profile: ChantProfile) = dao.getOrCreateProfileSession(profile)
+    suspend fun nextProfileSession(profile: ChantProfile) = dao.newProfileSession(profile)
+
+    suspend fun getOrCreateActiveSession(): ChantSession = dao.getOrCreateSessionSafely()
+    suspend fun beginNextSession(): ChantSession = dao.startSessionSafely()
+    suspend fun beginSessionFromPlan(plan: PracticePlan): ChantSession =
+        dao.startSessionSafely(plan.title, plan.targetCount, plan.id)
     suspend fun updateActiveTarget(session: ChantSession, targetCount: Int): ChantSession {
         val safeTarget = targetCount.coerceIn(1, 10_000)
         dao.updateSessionTarget(session.id, safeTarget)
         return session.copy(targetCount = safeTarget)
     }
-    suspend fun record(session: ChantSession, source: TallySource): TallyResult = tallyMutex.withLock {
-        val before = dao.count(session.id)
-        if (before >= session.targetCount) {
-            dao.endSession(session.id, Instant.now())
-            return@withLock TallyResult(before, reachedTarget = true, recorded = false)
-        }
-        dao.insertTally(ChantTally(sessionId = session.id, source = source))
-        val updated = before + 1
-        val reached = updated >= session.targetCount
-        if (reached) {
-            dao.endSession(session.id, Instant.now())
-            session.practicePlanId?.let { dao.updatePlanStatus(it, PlanStatus.COMPLETED) }
-        }
-        TallyResult(updated, reachedTarget = reached, recorded = true)
-    }
+    suspend fun record(session: ChantSession, source: TallySource): TallyResult =
+        dao.recordTallySafely(session.id, source)
     suspend fun count(sessionId: String): Int = dao.count(sessionId)
     suspend fun undoLatestManualTally(sessionId: String): Boolean = dao.deleteLatestManualTally(sessionId) > 0
     suspend fun resetTallies(sessionId: String): Boolean = tallyMutex.withLock {
         dao.deleteTalliesForSession(sessionId) > 0
     }
     fun observeCount(sessionId: String): Flow<Int> = dao.observeCount(sessionId)
+    fun observeManualCount(sessionId: String): Flow<Int> = dao.observeManualCount(sessionId)
     fun recentSessions(): Flow<List<ChantSession>> = dao.observeRecentSessions()
     fun completedActivities(): Flow<List<CompletedActivity>> = dao.observeCompletedActivities()
+    fun allCompletedActivities(): Flow<List<CompletedActivity>> = dao.observeAllCompletedActivities()
     fun plannedActivities(): Flow<List<PracticePlan>> = dao.observePlannedActivities()
     suspend fun plan(title: String, scheduledFor: Instant, targetCount: Int = 108): PracticePlan {
         val plan = PracticePlan(title = title, scheduledFor = scheduledFor, targetCount = targetCount)

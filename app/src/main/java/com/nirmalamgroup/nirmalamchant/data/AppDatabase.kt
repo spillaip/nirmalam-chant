@@ -8,7 +8,7 @@ import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [ChantSession::class, ChantTally::class, PracticePlan::class], version = 4, exportSchema = true)
+@Database(entities = [ChantSession::class, ChantTally::class, PracticePlan::class, ChantProfile::class], version = 5, exportSchema = true)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun chantDao(): ChantDao
@@ -17,9 +17,16 @@ abstract class AppDatabase : RoomDatabase() {
         @Volatile private var instance: AppDatabase? = null
         fun getInstance(context: Context): AppDatabase = instance ?: synchronized(this) {
             Room.databaseBuilder(context.applicationContext, AppDatabase::class.java, "nirmalam.db")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                 .build()
                 .also { instance = it }
+        }
+
+        private val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS chant_profiles (id TEXT NOT NULL PRIMARY KEY, name TEXT NOT NULL, targetCount INTEGER NOT NULL, intervalSeconds INTEGER NOT NULL)")
+                db.execSQL("ALTER TABLE chant_sessions ADD COLUMN profileId TEXT")
+            }
         }
 
         private val MIGRATION_1_2 = object : Migration(1, 2) {

@@ -39,7 +39,6 @@ object FeedbackPreferences {
     private const val PREFS = "meditation_feedback"
     private const val SOUND_ENABLED = "sound_enabled"
     private const val HAPTICS_ENABLED = "haptics_enabled"
-    private const val VOICE_THRESHOLD = "voice_threshold"
     private const val DEFAULT_TARGET = "default_target"
     fun isSoundEnabled(context: Context): Boolean = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(SOUND_ENABLED, false)
     fun setSoundEnabled(context: Context, enabled: Boolean) {
@@ -48,10 +47,6 @@ object FeedbackPreferences {
     fun isHapticsEnabled(context: Context): Boolean = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(HAPTICS_ENABLED, true)
     fun setHapticsEnabled(context: Context, enabled: Boolean) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean(HAPTICS_ENABLED, enabled).apply()
-    }
-    fun voiceThreshold(context: Context): Float = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getFloat(VOICE_THRESHOLD, 450f)
-    fun setVoiceThreshold(context: Context, threshold: Float) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putFloat(VOICE_THRESHOLD, threshold.coerceIn(100f, 8_000f)).apply()
     }
     fun defaultTarget(context: Context): Int = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt(DEFAULT_TARGET, 108).coerceIn(1, 10_000)
     fun setDefaultTarget(context: Context, target: Int) {
