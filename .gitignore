@@ -8,3 +8,15 @@ keystore.properties
 *.jks
 *.keystore
 *.iml
+
+# Android release artifacts
+*.aab
+*.apk
+*.jks
+*.keystore
+keystore.properties
+local.properties
+
+# Generated source archives
+app/src-zip.zip
+app/src/main.zip
